@@ -72,6 +72,33 @@
   .acctrow .ae{font-size:12px; color:var(--ink3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bigbtn.ghost svg{flex:none}
 
+  /* roster chips on the setup screen */
+  .rosterlbl{font-size:12px; color:var(--ink3); font-weight:700; margin:0 2px 7px}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px}
+  .pchip{display:inline-flex; align-items:center; gap:7px; padding:8px 13px}
+  .pchip i{width:9px; height:9px; border-radius:50%; display:inline-block; flex:none}
+
+  /* leaderboard */
+  .lbrow{display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 13px; margin-bottom:8px}
+  .lbrow:active{background:var(--card2)}
+  .lbrank{font-size:13px; font-weight:800; color:var(--ink3); width:16px; flex:none}
+  .lbdot{width:11px; height:11px; border-radius:50%; flex:none}
+  .lbname{flex:1; min-width:0; font-weight:800; font-size:15px}
+  .lbname small{display:block; font-size:11.5px; font-weight:600; color:var(--ink3); margin-top:3px}
+  .lbwins{flex:none; text-align:right; font-weight:900; font-size:19px; min-width:74px}
+  .lbwins small{display:block; font-size:10.5px; font-weight:700; color:var(--ink3)}
+  .lbbar{display:block; height:4px; border-radius:2px; background:var(--line); margin-top:5px; overflow:hidden}
+  .lbbar i{display:block; height:100%; background:var(--green)}
+
+  /* stat tiles */
+  .tiles{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 6px}
+  @media (min-width:460px){ .tiles{grid-template-columns:1fr 1fr 1fr} }
+  .tile{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 12px}
+  .tile .tv{font-size:19px; font-weight:900; font-variant-numeric:tabular-nums}
+  .tile .tl{font-size:11px; font-weight:700; color:var(--ink3); margin-top:2px}
+
   /* ---------- setup ---------- */
   .field{margin-bottom:14px}
   .field label{display:block; font-size:12.5px; font-weight:700; color:var(--ink2); margin-bottom:6px}
@@ -299,17 +326,43 @@ let toastTimer=null;
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),1800); }
 
+const newStats = () => ({
+  rentCollected:0, rentPaid:0, taxesPaid:0, goCollected:0,
+  bankReceived:0, bankPaid:0, freeParkingWon:0,
+  paidToPlayers:0, receivedFromPlayers:0,
+  propertySpend:0, propsBought:0, buildingSpend:0, buildingsSold:0,
+  housesBuilt:0, hotelsBuilt:0, timesMortgaged:0,
+  mortgageProceeds:0, unmortgageCost:0,
+  biggestRentPaid:0, biggestRentCollected:0,
+});
 function newGameState(name, players, opts){
   return {
-    v:1, name, createdAt: Date.now(),
+    v:2, name, createdAt: Date.now(), endedAt: null,
     settings: { startingCash: opts.startingCash, goAmount: opts.goAmount, freeParking: opts.freeParking },
     players: players.map((p,i)=>({ id:"p"+(i+1)+"_"+Math.random().toString(36).slice(2,7),
-      name:p.name, color:p.color, balance:opts.startingCash, bankrupt:false })),
+      name:p.name, color:p.color, balance:opts.startingCash, bankrupt:false, stats:newStats() })),
     props: {},           // propId -> {owner, mortgaged, houses}
     freeParking: 0,
     log: [],
     finished: false,
   };
+}
+/* Older saved games predate the stats tallies — backfill on load. */
+function migrateState(st){
+  if (!st) return st;
+  st.players.forEach(p=>{ p.stats = Object.assign(newStats(), p.stats||{}); });
+  if (st.endedAt === undefined) st.endedAt = null;
+  st.v = 2;
+  return st;
+}
+/* Add to a player's running tally. */
+function bump(plId, key, amount){
+  const p = (plId && plId!=="BANK" && plId!=="FP") ? player(plId) : null;
+  if (!p) return;
+  if (!p.stats) p.stats = newStats();
+  if (key==="biggestRentPaid" || key==="biggestRentCollected")
+    p.stats[key] = Math.max(p.stats[key]||0, amount);
+  else p.stats[key] = (p.stats[key]||0) + amount;
 }
 const player = id => S.players.find(p=>p.id===id);
 const propState = pid => S.props[pid] || null;
@@ -380,7 +433,7 @@ function nameOf(id){
   if (id==="FP") return "Free Parking";
   const p = player(id); return p ? p.name : "?";
 }
-function transfer(from, to, amount, why){
+function transfer(from, to, amount, why, cat){
   amount = Math.round(amount);
   if (!amount) return;
   mutate(()=>{
@@ -388,7 +441,66 @@ function transfer(from, to, amount, why){
     if (from==="FP") S.freeParking -= amount;
     if (to!=="BANK" && to!=="FP") player(to).balance += amount;
     if (to==="FP") S.freeParking += amount;
+    switch (cat){
+      case "rent":
+        bump(from,"rentPaid",amount); bump(from,"biggestRentPaid",amount);
+        bump(to,"rentCollected",amount); bump(to,"biggestRentCollected",amount);
+        break;
+      case "tax":    bump(from,"taxesPaid",amount); break;
+      case "go":     bump(to,"goCollected",amount); break;
+      case "fp":     bump(to,"freeParkingWon",amount); break;
+      case "bankIn": bump(to,"bankReceived",amount); break;
+      case "bankOut":bump(from,"bankPaid",amount); break;
+      case "player":
+        bump(from,"paidToPlayers",amount); bump(to,"receivedFromPlayers",amount);
+        break;
+    }
   }, `${nameOf(from)} paid ${fmt(amount)} to ${nameOf(to)}` + (why? ` — ${why}` : ""));
+}
+
+/* ---------------- Standings (what gets written to the stats table) ---------------- */
+function monopoliesOf(plId){
+  return Object.keys(GROUPS).filter(g => g!=="rail" && g!=="util" && ownsFullGroup(plId,g)).length;
+}
+function computeStandings(){
+  const alive = S.players.filter(p=>!p.bankrupt);
+  const winner = (S.finished || alive.length===1) && alive.length===1 ? alive[0].id : null;
+  const rows = S.players.map(p=>{
+    const owned = playerProps(p.id);
+    let houses=0, hotels=0, mortgaged=0;
+    owned.forEach(pr=>{
+      const st=S.props[pr.id];
+      if (st.houses===5) hotels++; else houses += st.houses||0;
+      if (st.mortgaged) mortgaged++;
+    });
+    const st = Object.assign(newStats(), p.stats||{});
+    return Object.assign({
+      name:p.name, color:p.color,
+      bankrupt:!!p.bankrupt, won: p.id===winner,
+      cash:Math.round(p.balance), netWorth:Math.round(netWorth(p)),
+      props:owned.length, monopolies:monopoliesOf(p.id),
+      houses, hotels, mortgaged,
+    }, st);
+  });
+  // rank: survivors by net worth, bankrupt players last
+  rows.slice().sort((a,b)=>{
+    if (a.bankrupt !== b.bankrupt) return a.bankrupt ? 1 : -1;
+    return b.netWorth - a.netWorth;
+  }).forEach((r,i)=>{ r.rank = i+1; });
+  return rows;
+}
+function gameMeta(){
+  const ended = S.finished ? (S.endedAt || Date.now()) : null;
+  return {
+    finished: !!S.finished,
+    playerCount: S.players.length,
+    startingCash: S.settings.startingCash,
+    goAmount: S.settings.goAmount,
+    freeParking: !!S.settings.freeParking,
+    startedAt: S.createdAt,
+    endedAt: ended,
+    durationSeconds: Math.round((((ended || Date.now()) - S.createdAt))/1000),
+  };
 }
 
 /* ---------------- Supabase (plain REST, no SDK needed) ---------------- */
@@ -494,6 +606,10 @@ async function saveNow(){
   if (!S || !canSave()) return;
   if (saveBusy){ savePending = true; return; }
   saveBusy = true;
+  // Snapshot-as-you-play: the DB trigger reads these two keys and keeps
+  // the roster + game_stats table in sync on every save.
+  S.standings = computeStandings();
+  S.meta = gameMeta();
   const stateRef = S;
   try {
     if (!gameId){
@@ -512,6 +628,17 @@ async function saveNow(){
   }
   saveBusy = false;
   if (savePending){ savePending=false; saveNow(); }
+}
+async function fetchRoster(){
+  try { return await sb("/rest/v1/players?select=name,color&order=last_played_at.desc&limit=40"); }
+  catch(e){ console.error(e); return []; }
+}
+async function fetchLeaderboard(){
+  return sb("/rest/v1/player_leaderboard?select=*&order=wins.desc,games.desc,player_name.asc");
+}
+async function fetchPlayerGames(name){
+  return sb("/rest/v1/game_stats?player_name=eq."+encodeURIComponent(name)
+    +"&select=*&order=updated_at.desc&limit=50");
 }
 async function fetchGames(){
   return sb("/rest/v1/games?select=id,name,updated_at,state&order=updated_at.desc&limit=50");
@@ -607,6 +734,10 @@ async function renderHome(){
       </div>`:""}
       <div class="sect">Saved games</div>
       <div id="h_list"><div class="note">Loading…</div></div>
+      <div id="h_statswrap" hidden>
+        <div class="sect">Leaderboard</div>
+        <div id="h_stats"></div>
+      </div>
       <div class="sect">Setup</div>
       <button class="bigbtn ghost" id="h_settings">⚙️ &nbsp;Supabase settings</button>
       <div style="height:20px"></div>
@@ -658,15 +789,94 @@ async function renderHome(){
       const row = e.target.closest(".gamerow");
       if (row){
         const r = rows.find(x=>x.id===row.dataset.id);
-        if (r){ S = r.state; gameId = r.id; snapshots=[]; renderGame(); setSaveStatus("ok","Saved"); }
+        if (r){ S = migrateState(r.state); gameId = r.id; snapshots=[]; renderGame(); setSaveStatus("ok","Saved"); }
       }
     });
+    loadLeaderboard();
   } catch(e){
     console.error(e);
     list.innerHTML = `<div class="note"><b>Couldn’t reach Supabase.</b><br>${esc(e.message)}<br><br>
       Check your URL/key in <button class="linkish" onclick="openSettings()">Supabase settings</button>,
       and make sure you’ve run <b>schema.sql</b> in the SQL editor.</div>`;
   }
+}
+
+async function loadLeaderboard(){
+  const wrap = $("#h_statswrap"), box = $("#h_stats");
+  if (!wrap || !box) return;
+  try {
+    const rows = await fetchLeaderboard();
+    if (!rows || !rows.length){ wrap.hidden = true; return; }
+    wrap.hidden = false;
+    const maxWins = Math.max(1, ...rows.map(r=>+r.wins||0));
+    box.innerHTML = rows.map((r,i)=>{
+      const games = +r.games||0, wins = +r.wins||0;
+      const medal = games && i===0 && wins>0 ? "🏆" : "";
+      return `<button class="lbrow" data-player="${esc(r.player_name)}">
+        <span class="lbrank">${i+1}</span>
+        <span class="lbdot" style="background:${esc(r.color||"#888")}"></span>
+        <span class="lbname">${esc(r.player_name)} ${medal}
+          <small>${games} game${games===1?"":"s"}${(+r.in_progress)? " · "+r.in_progress+" in play":""}${
+            games? " · avg net "+fmt(r.avg_net_worth||0) : ""}</small></span>
+        <span class="lbwins">${wins}<small>${games? (r.win_pct||0)+"% win" : "wins"}</small>
+          <span class="lbbar"><i style="width:${Math.round(100*wins/maxWins)}%"></i></span></span>
+      </button>`;
+    }).join("");
+    box.onclick = e=>{
+      const b = e.target.closest("[data-player]");
+      if (b) openPlayerStats(b.dataset.player);
+    };
+  } catch(e){ console.error(e); wrap.hidden = true; }
+}
+
+function openPlayerStats(name){
+  const w = openPanel(`
+    <h2>${esc(name)}</h2>
+    <div class="sub">Career record</div>
+    <div class="pscroll" id="ps_body"><div class="note">Loading…</div></div>
+  `);
+  fetchPlayerGames(name).then(rows=>{
+    const body = w.querySelector("#ps_body"); if (!body) return;
+    if (!rows || !rows.length){ body.innerHTML = `<div class="note">No games recorded yet.</div>`; return; }
+    const done = rows.filter(r=>r.finished);
+    const sum = k => rows.reduce((a,r)=>a + (+r[k]||0), 0);
+    const wins = done.filter(r=>r.won).length;
+    const tiles = [
+      ["Games", done.length],
+      ["Wins", wins],
+      ["Win rate", done.length? Math.round(100*wins/done.length)+"%" : "—"],
+      ["Best net worth", fmt(Math.max(0, ...rows.map(r=>+r.net_worth||0)))],
+      ["Rent collected", fmt(sum("rent_collected"))],
+      ["Rent paid", fmt(sum("rent_paid"))],
+      ["Properties bought", sum("props_bought")],
+      ["Houses + hotels", sum("houses") + sum("hotels")],
+      ["Taxes & fees", fmt(sum("taxes_paid"))],
+      ["Biggest rent taken", fmt(Math.max(0, ...rows.map(r=>+r.biggest_rent_collected||0)))],
+      ["Spent on property", fmt(sum("property_spend"))],
+      ["Times mortgaged", sum("times_mortgaged")],
+    ];
+    body.innerHTML = `
+      <div class="tiles">${tiles.map(([l,v])=>
+        `<div class="tile"><div class="tv">${v}</div><div class="tl">${esc(l)}</div></div>`).join("")}</div>
+      <div class="grouphdr">Game history</div>
+      ${rows.map(r=>{
+        const d = new Date(r.updated_at);
+        const tag = r.won? `<span class="tag gold">won</span>`
+          : r.bankrupt? `<span class="tag red">bankrupt</span>`
+          : !r.finished? `<span class="tag">in play</span>`
+          : `<span class="tag">#${r.rank||"?"}</span>`;
+        return `<div class="prop" style="cursor:default">
+          <div class="bar" style="background:${esc(r.color||"#888")}"></div>
+          <div class="pinfo"><div class="pname">${esc(r.game_name||"Game")} ${tag}</div>
+          <div class="psub">${d.toLocaleDateString()} · ${r.props||0} props · ${(r.houses||0)+(r.hotels||0)} built${
+            r.duration_seconds? " · "+Math.max(1,Math.round(r.duration_seconds/60))+" min" : ""}</div></div>
+          <div class="pright">${fmt(r.net_worth||0)}<small>net worth</small></div>
+        </div>`;
+      }).join("")}`;
+  }).catch(e=>{
+    const body = w.querySelector("#ps_body");
+    if (body) body.innerHTML = `<div class="note">Couldn’t load stats: ${esc(e.message)}</div>`;
+  });
 }
 
 /* ----- SETUP ----- */
@@ -683,6 +893,10 @@ function renderSetup(){
       <div class="field"><label>Game name</label>
         <input type="text" id="s_name" placeholder="e.g. Saturday night" maxlength="40"></div>
       <div class="sect">Players</div>
+      <div id="s_roster" hidden>
+        <div class="rosterlbl">Tap to add a regular</div>
+        <div class="chips" id="s_chips"></div>
+      </div>
       <div id="s_players"></div>
       <button class="bigbtn ghost" id="s_add" style="margin-top:4px">＋ Add player</button>
       <div class="sect">Rules</div>
@@ -708,6 +922,34 @@ function renderSetup(){
       </div>`).join("");
   };
   paintPlayers();
+
+  // Saved roster — everyone who has played in one of your games before.
+  // ("roster" above is the editable form rows; savedRoster is the stored list.)
+  let savedRoster = [];
+  function paintChips(){
+    const box = $("#s_chips"); if (!box) return;
+    const taken = new Set(roster.map(r=>r.name.trim().toLowerCase()).filter(Boolean));
+    const avail = savedRoster.filter(r=>r.name && !taken.has(r.name.toLowerCase()));
+    $("#s_roster").hidden = avail.length===0;
+    box.innerHTML = avail.map(r=>
+      `<button class="chip pchip" data-add-name="${esc(r.name)}" data-add-color="${esc(r.color||"")}">
+        <i style="background:${esc(r.color||"#888")}"></i>${esc(r.name)}</button>`).join("");
+  }
+  if (hasCreds() && session){
+    fetchRoster().then(rows=>{ savedRoster = rows||[]; paintChips(); });
+  }
+  $("#s_chips").addEventListener("click", e=>{
+    const b = e.target.closest("[data-add-name]"); if (!b) return;
+    const name = b.dataset.addName, color = b.dataset.addColor;
+    const blank = roster.findIndex(r=>!r.name.trim());
+    if (blank >= 0){ roster[blank].name = name; if (color) roster[blank].color = color; }
+    else {
+      if (roster.length>=8) return toast("Max 8 players");
+      roster.push({ name, color: color || PLAYER_COLORS[roster.length%PLAYER_COLORS.length] });
+    }
+    paintPlayers(); paintChips();
+  });
+
   $("#s_back").addEventListener("click", renderHome);
   $("#s_add").addEventListener("click", ()=>{
     if (roster.length>=8) return toast("Max 8 players");
@@ -715,7 +957,10 @@ function renderSetup(){
     paintPlayers();
   });
   $("#s_players").addEventListener("input", e=>{
-    if (e.target.dataset.name!==undefined) roster[+e.target.dataset.name].name = e.target.value;
+    if (e.target.dataset.name!==undefined){
+      roster[+e.target.dataset.name].name = e.target.value;
+      paintChips();
+    }
   });
   $("#s_players").addEventListener("click", e=>{
     const c = e.target.closest("[data-color]");
@@ -724,7 +969,7 @@ function renderSetup(){
       paintPlayers();
     }
     const rm = e.target.closest("[data-rm]");
-    if (rm){ roster.splice(+rm.dataset.rm,1); paintPlayers(); }
+    if (rm){ roster.splice(+rm.dataset.rm,1); paintPlayers(); paintChips(); }
   });
   $("#s_fp").addEventListener("click", ()=>{
     opts.freeParking = !opts.freeParking;
@@ -822,11 +1067,11 @@ function renderGame(){
 function quickAction(plId, a){
   const pl = player(plId);
   if (pl.bankrupt){ toast(pl.name+" is bankrupt"); return; }
-  if (a==="go"){ transfer("BANK", plId, S.settings.goAmount, "passed GO"); toast(pl.name+" +"+fmt(S.settings.goAmount)); }
-  else if (a==="collect"){ askAmount({title:"Collect from Bank", sub:pl.name+" receives"}, v=>transfer("BANK", plId, v)); }
+  if (a==="go"){ transfer("BANK", plId, S.settings.goAmount, "passed GO", "go"); toast(pl.name+" +"+fmt(S.settings.goAmount)); }
+  else if (a==="collect"){ askAmount({title:"Collect from Bank", sub:pl.name+" receives"}, v=>transfer("BANK", plId, v, "", "bankIn")); }
   else if (a==="paybank"){ openPayBank(plId); }
   else if (a==="payplayer"){ pickPlayer("Who does "+pl.name+" pay?", plId, toId=>{
-    askAmount({title:pl.name+" pays "+player(toId).name}, v=>transfer(plId, toId, v));
+    askAmount({title:pl.name+" pays "+player(toId).name}, v=>transfer(plId, toId, v, "", "player"));
   }); }
   else if (a==="payrent"){ openPayRent(plId); }
   else if (a==="buy"){ openBuyProperty(plId); }
@@ -894,9 +1139,9 @@ function openPayBank(plId){
       const b = e.target.closest("[data-t]"); if (!b) return;
       closePanel(w);
       if (b.dataset.t==="custom"){
-        askAmount({title:pl.name+" pays the "+(fp?"pot":"Bank")}, v=>transfer(plId, dest, v));
+        askAmount({title:pl.name+" pays the "+(fp?"pot":"Bank")}, v=>transfer(plId, dest, v, "", "tax"));
       } else {
-        transfer(plId, dest, +b.dataset.t, "tax/fee");
+        transfer(plId, dest, +b.dataset.t, "tax/fee", "tax");
       }
     });
   });
@@ -916,7 +1161,7 @@ function openBankSheet(){
       const dir = b.dataset.b;
       pickPlayer(dir==="give"? "Bank pays whom?":"Who pays the Bank?", null, plId=>{
         askAmount({title: dir==="give"? "Bank pays "+player(plId).name : player(plId).name+" pays the Bank"},
-          v=> dir==="give"? transfer("BANK", plId, v) : transfer(plId, "BANK", v));
+          v=> dir==="give"? transfer("BANK", plId, v, "", "bankIn") : transfer(plId, "BANK", v, "", "bankOut"));
       });
     });
   });
@@ -924,7 +1169,7 @@ function openBankSheet(){
 function openFreeParking(){
   if (S.freeParking<=0){ toast("Pot is empty"); return; }
   pickPlayer("Who landed on Free Parking?", null, plId=>{
-    transfer("FP", plId, S.freeParking, "won the Free Parking pot");
+    transfer("FP", plId, S.freeParking, "won the Free Parking pot", "fp");
     toast(player(plId).name+" collects the pot!");
   });
 }
@@ -952,12 +1197,12 @@ function openPayRent(plId){
         const both = GROUP_MEMBERS.util.every(id=>S.props[id]&&S.props[id].owner===st.owner);
         askAmount({title:"Dice roll?", sub:"Utility rent = roll × "+(both?10:4), confirmLabel:"Charge rent"}, roll=>{
           const amt = rentFor(p.id, roll);
-          transfer(plId, ow.id, amt, "rent — "+p.name+" (rolled "+roll+")");
+          transfer(plId, ow.id, amt, "rent — "+p.name+" (rolled "+roll+")", "rent");
           toast(fmt(amt)+" to "+ow.name);
         });
       } else {
         askAmount({title:"Rent — "+p.name, sub:pl.name+" → "+ow.name, initial:rentFor(p.id), confirmLabel:"Pay rent"}, v=>{
-          transfer(plId, ow.id, v, "rent — "+p.name);
+          transfer(plId, ow.id, v, "rent — "+p.name, "rent");
           toast(fmt(v)+" to "+ow.name);
         });
       }
@@ -979,6 +1224,7 @@ function openBuyProperty(plId){
         mutate(()=>{
           pl.balance -= v;
           S.props[p.id] = {owner:plId, mortgaged:false, houses:0};
+          bump(plId,"propertySpend",v); bump(plId,"propsBought",1);
         }, pl.name+" bought "+p.name+" for "+fmt(v));
         toast(pl.name+" owns "+p.name);
       });
@@ -1032,7 +1278,8 @@ function openPropertyBrowser(){
       if (!st || !st.owner){
         pickPlayer("Who buys "+p.name+"?", null, plId=>{
           askAmount({title:"Buy "+p.name, sub:"List price "+fmt(p.price), initial:p.price, confirmLabel:"Buy"}, v=>{
-            mutate(()=>{ player(plId).balance -= v; S.props[p.id]={owner:plId, mortgaged:false, houses:0}; },
+            mutate(()=>{ player(plId).balance -= v; S.props[p.id]={owner:plId, mortgaged:false, houses:0};
+              bump(plId,"propertySpend",v); bump(plId,"propsBought",1); },
               player(plId).name+" bought "+p.name+" for "+fmt(v));
           });
         });
@@ -1105,23 +1352,28 @@ function openPropDetail(pid){
       if (wantHotel && hu.hotels>=TOTAL_HOTELS) return toast("No hotels left in the bank");
       if (!wantHotel && hu.houses>=TOTAL_HOUSES) return toast("No houses left in the bank");
       done();
-      mutate(()=>{ ow.balance -= p.house; S.props[pid].houses++; },
+      mutate(()=>{ ow.balance -= p.house; S.props[pid].houses++;
+        bump(ow.id,"buildingSpend",p.house);
+        bump(ow.id, S.props[pid].houses===5 ? "hotelsBuilt" : "housesBuilt", 1); },
         ow.name+" built "+(st.houses===4?"a hotel":"a house")+" on "+p.name+" ("+fmt(p.house)+")");
       openPropDetail(pid);
     });
     if (minus) minus.addEventListener("click", ()=>{
       done();
-      mutate(()=>{ ow.balance += p.house/2; S.props[pid].houses--; },
+      mutate(()=>{ ow.balance += p.house/2; S.props[pid].houses--;
+        bump(ow.id,"buildingsSold",p.house/2); },
         ow.name+" sold "+(st.houses===5?"the hotel":"a house")+" on "+p.name+" (+"+fmt(p.house/2)+")");
       openPropDetail(pid);
     });
     const m = w.querySelector("#pd_mort");
     if (m) m.addEventListener("click", ()=>{ done();
-      mutate(()=>{ ow.balance += mort; S.props[pid].mortgaged = true; },
+      mutate(()=>{ ow.balance += mort; S.props[pid].mortgaged = true;
+        bump(ow.id,"mortgageProceeds",mort); bump(ow.id,"timesMortgaged",1); },
         ow.name+" mortgaged "+p.name+" (+"+fmt(mort)+")"); });
     const um = w.querySelector("#pd_unmort");
     if (um) um.addEventListener("click", ()=>{ done();
-      mutate(()=>{ ow.balance -= unmort; S.props[pid].mortgaged = false; },
+      mutate(()=>{ ow.balance -= unmort; S.props[pid].mortgaged = false;
+        bump(ow.id,"unmortgageCost",unmort); },
         ow.name+" unmortgaged "+p.name+" (−"+fmt(unmort)+")"); });
     w.querySelector("#pd_xfer").addEventListener("click", ()=>{ done();
       pickPlayer(p.name+" goes to…", ow.id, toId=>{
@@ -1168,7 +1420,7 @@ function openBankruptcy(plId){
         }
         pl.bankrupt = true;
         const alive = S.players.filter(x=>!x.bankrupt);
-        if (alive.length===1){ S.finished = true; logLine("🏆 "+alive[0].name+" wins the game!"); }
+        if (alive.length===1){ S.finished = true; S.endedAt = Date.now(); logLine("🏆 "+alive[0].name+" wins the game!"); }
       }, "💀 "+pl.name+" went bankrupt to "+nameOf(credId));
       const alive = S.players.filter(x=>!x.bankrupt);
       if (alive.length===1) toast("🏆 "+alive[0].name+" wins!");
@@ -1207,7 +1459,8 @@ function openMenu(){
     w.querySelector("#m_addpl").addEventListener("click", ()=>{ closePanel(w); openAddPlayer(); });
     w.querySelector("#m_sb").addEventListener("click", ()=>{ closePanel(w); openSettings(); });
     w.querySelector("#m_finish").addEventListener("click", ()=>{ closePanel(w);
-      mutate(()=>{ S.finished = !S.finished; }, S.finished? "Game reopened":"Game marked finished"); });
+      mutate(()=>{ S.finished = !S.finished; S.endedAt = S.finished ? Date.now() : null; },
+        S.finished? "Game reopened":"Game marked finished"); });
   });
 }
 function openRename(){
