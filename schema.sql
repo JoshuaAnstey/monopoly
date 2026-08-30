@@ -45,6 +45,7 @@ create table if not exists public.players (
   created_at timestamptz not null default now(),
   unique (user_id, name)
 );
+alter table public.players add column if not exists token text;
 create index if not exists players_user_idx on public.players(user_id);
 
 alter table public.players enable row level security;
@@ -104,6 +105,7 @@ create table if not exists public.game_stats (
 
   unique (game_id, player_name)
 );
+alter table public.game_stats add column if not exists token text;
 create index if not exists game_stats_user_idx on public.game_stats(user_id);
 create index if not exists game_stats_player_idx on public.game_stats(user_id, player_name);
 
@@ -133,15 +135,16 @@ begin
   for s in select * from jsonb_array_elements(coalesce(new.state->'standings', '[]'::jsonb))
   loop
     -- roster
-    insert into public.players (user_id, name, color, last_played_at)
-    values (new.user_id, s->>'name', s->>'color', now())
+    insert into public.players (user_id, name, color, token, last_played_at)
+    values (new.user_id, s->>'name', s->>'color', s->>'token', now())
     on conflict (user_id, name) do update
       set color = excluded.color,
+          token = coalesce(excluded.token, public.players.token),
           last_played_at = now();
 
     -- per-game stats
     insert into public.game_stats (
-      user_id, game_id, game_name, player_name, color,
+      user_id, game_id, game_name, player_name, color, token,
       rank, won, bankrupt, cash, net_worth,
       props, monopolies, houses, hotels, mortgaged, props_bought, times_mortgaged,
       rent_collected, rent_paid, taxes_paid, go_collected,
@@ -150,7 +153,7 @@ begin
       finished, player_count, starting_cash, go_amount, free_parking,
       started_at, ended_at, duration_seconds, updated_at
     ) values (
-      new.user_id, new.id, new.name, s->>'name', s->>'color',
+      new.user_id, new.id, new.name, s->>'name', s->>'color', s->>'token',
       (s->>'rank')::int, (s->>'won')::boolean, (s->>'bankrupt')::boolean,
       (s->>'cash')::numeric, (s->>'netWorth')::numeric,
       (s->>'props')::int, (s->>'monopolies')::int, (s->>'houses')::int,
@@ -173,6 +176,7 @@ begin
     on conflict (game_id, player_name) do update set
       game_name = excluded.game_name,
       color = excluded.color,
+      token = excluded.token,
       rank = excluded.rank,
       won = excluded.won,
       bankrupt = excluded.bankrupt,
@@ -221,6 +225,7 @@ select
   user_id,
   player_name,
   max(color) filter (where color is not null)          as color,
+  max(token) filter (where token is not null)          as token,
   count(*) filter (where finished)                     as games,
   count(*) filter (where finished and won)             as wins,
   round(

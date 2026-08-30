@@ -72,6 +72,24 @@
   .acctrow .ae{font-size:12px; color:var(--ink3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bigbtn.ghost svg{flex:none}
 
+  /* playing pieces */
+  svg.tok{display:inline-block; vertical-align:middle; flex:none}
+  h2.withtok{display:flex; align-items:center; gap:8px}
+  .swatch.tokbtn{background:var(--card2); display:flex; align-items:center; justify-content:center}
+  .swatch.tokbtn:active{background:var(--line)}
+  .tokgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:2px 0 4px}
+  .tokopt{display:flex; flex-direction:column; align-items:center; gap:5px; padding:11px 4px 9px;
+    border-radius:12px; background:var(--card); border:1px solid var(--line); color:var(--ink2)}
+  .tokopt span{font-size:10.5px; font-weight:700; line-height:1.15; text-align:center}
+  .tokopt.sel{border-color:var(--green); background:rgba(47,191,107,.12); color:var(--ink)}
+  .tokopt:disabled{opacity:.28}
+  .tokopt:active:not(:disabled){background:var(--card2)}
+  .colopt{width:34px; height:34px; border-radius:50%; border:3px solid transparent}
+  .colopt.sel{border-color:var(--ink)}
+  .phead svg.tok{margin-right:-2px}
+  .lbdot{display:flex; align-items:center; flex:none}
+  .act .ic svg.tok{vertical-align:middle}
+
   /* roster chips on the setup screen */
   .rosterlbl{font-size:12px; color:var(--ink3); font-weight:700; margin:0 2px 7px}
   .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px}
@@ -303,6 +321,26 @@ const BOARD = [
 const PROP = Object.fromEntries(BOARD.map(p=>[p.id,p]));
 const GROUP_MEMBERS = {};
 BOARD.forEach(p=>{ (GROUP_MEMBERS[p.group] = GROUP_MEMBERS[p.group]||[]).push(p.id); });
+/* Monopoly-style playing pieces. Each is a 24x24 silhouette drawn in the player's colour. */
+const TOKENS = [
+  { id:"hat", name:"Top Hat", svg:`<rect x="7.6" y="2.6" width="8.8" height="11" rx="1"/><ellipse cx="12" cy="15.2" rx="10.2" ry="2.8"/>` },
+  { id:"car", name:"Race Car", svg:`<path d="M1.6 13.4h3.4l1.7-2.4h4.5l2.1-2.7h3.3l1.5 2.7h4.4c.7 0 1.3.6 1.3 1.3v1.7c0 .7-.6 1.3-1.3 1.3H1.6z"/><rect x="0.6" y="10.6" width="4" height="1.5" rx=".6"/><rect x="19.4" y="9.4" width="4" height="1.5" rx=".6"/><circle cx="6.6" cy="17" r="3"/><circle cx="17.4" cy="17" r="3"/>` },
+  { id:"dog", name:"Scottie Dog", svg:`<rect x="6" y="8.6" width="12.4" height="6.4" rx="1.4"/><rect x="2.6" y="6.8" width="6.6" height="6.2" rx="1.4"/><path d="M3.4 7.4 4.2 3.4l2.2 3z"/><path d="M8.4 7.4 7.6 3.4l-2.2 3z"/><rect x="6.4" y="14" width="2.4" height="5.4" rx="1"/><rect x="10.2" y="14" width="2.4" height="5.4" rx="1"/><rect x="15" y="14" width="2.4" height="5.4" rx="1"/><path d="M17.6 9.4 20.6 5.8l1.5 1.4-2.6 3.6z"/>` },
+  { id:"ship", name:"Battleship", svg:`<path d="M1.4 13.6h21.2l-2.3 4.3c-.4.8-1.2 1.3-2.1 1.3H5.8c-.9 0-1.7-.5-2.1-1.3z"/><rect x="8.4" y="7.8" width="6.8" height="5.8" rx=".8"/><rect x="11.2" y="2.6" width="1.6" height="5.2"/><rect x="15.8" y="9.2" width="2.8" height="4.4" rx=".6"/><rect x="5.4" y="10.4" width="2.4" height="3.2" rx=".5"/>` },
+  { id:"boot", name:"Boot", svg:`<path d="M7.4 3.2H13v6.4c0 1.5.6 2.5 1.9 3.2l4.2 2.2c1.8 1 2.6 2.2 2.6 4v2.4H7.4z"/>` },
+  { id:"thimble", name:"Thimble", svg:`<path d="M12 2.4c-3 0-5.2 2.2-5.2 5.2v8.2h10.4V7.6c0-3-2.2-5.2-5.2-5.2z"/><path d="M5.6 16.2h12.8v2.6c0 .8-.6 1.4-1.4 1.4H7c-.8 0-1.4-.6-1.4-1.4z"/>` },
+  { id:"barrow", name:"Wheelbarrow", svg:`<path d="M2.2 6.6h14l-3.2 7.8H5.4z"/><path d="M15.4 7.2 22.4 10.6l-.9 1.8-7-3.4z"/><circle cx="5.6" cy="18.2" r="2.9"/><path d="M11.6 14.4h2v4.4h-2z"/><path d="M4.6 14.4h2v2.2h-2z"/>` },
+  { id:"cat", name:"Cat", svg:`<circle cx="11.4" cy="7" r="4.1"/><path d="M7.6 4.4 6.7 1.2l3 1.9z"/><path d="M15.2 4.4l.9-3.2-3 1.9z"/><path d="M11.4 10.6c-3 0-5.4 3.5-5.4 7.6 0 1.5.5 2.6 1.2 2.6h8.4c.7 0 1.2-1.1 1.2-2.6 0-4.1-2.4-7.6-5.4-7.6z"/><path d="M17.4 20.8c3.1 0 5.4-2.3 5.4-5.1 0-2.1-1.1-3.6-2.6-4.3l-.9 1.9c.9.4 1.5 1.2 1.5 2.4 0 1.6-1.4 3-3.4 3z"/>` },
+  { id:"duck", name:"Rubber Duck", svg:`<circle cx="8.4" cy="6.6" r="4.3"/><path d="M12.1 5.2 19.6 6.9l-7 3.1z"/><path d="M3.2 13.8c0-1.3 1-2.3 2.3-2.3h7.1c4.3 0 7.8 2.1 7.8 4.8s-2.9 5-7.2 5H8.9c-3.5 0-5.7-2.4-5.7-5.3z"/>` },
+  { id:"penguin", name:"Penguin", svg:`<ellipse cx="12" cy="13.8" rx="4.8" ry="6.6"/><circle cx="12" cy="5.8" r="3.7"/><path d="M15.3 5 20.2 6.4l-4.9 2.2z"/><path d="M7.4 9.2c-2.6 1.3-4.2 3.6-3.6 6.6l3.6-2z"/><path d="M16.6 9.2c2.6 1.3 4.2 3.6 3.6 6.6l-3.6-2z"/><path d="M7.6 19.6h3.6l-1 2.4H6z"/><path d="M16.4 19.6h-3.6l1 2.4H18z"/>` },
+  { id:"trex", name:"T-Rex", svg:`<path d="M.8 16.8 8.6 13.2l1.9 3.5-7.8 3.6z"/><ellipse cx="12.2" cy="12.6" rx="5" ry="4.2"/><path d="M12.4 7h2.4v5.8h-2.4z"/><path d="M12.6 4.2h5.9c1.7 0 3.1 1.4 3.1 3.1v1.4h-9z"/><path d="M13.2 9.9h7.1l-.8 1.8h-6.3z"/><path d="M15.9 12.4h2.7v1.6h-2.7z"/><path d="M9.2 15.9h2.8v4.1H9.2z"/><rect x="7.8" y="19.6" width="5.7" height="2" rx=".9"/><path d="M13.8 15.9h2.6v4.1h-2.6z"/><rect x="12.6" y="19.6" width="5.5" height="2" rx=".9"/>` },
+  { id:"iron", name:"Iron", svg:`<path d="M8.8 8V6.2c0-1.1.9-2 2-2h4.4c1.1 0 2 .9 2 2V8h-2.2V6.6h-4V8z"/><path d="M2.6 15.2c0-4 3.8-7 8.8-7H19c1.7 0 3 1.4 3 3v4H2.6z"/><rect x="2.6" y="16.6" width="19.4" height="2.6" rx=".8"/>` },
+];
+const TOKEN = id => TOKENS.find(t=>t.id===id) || TOKENS[0];
+function tokenSVG(id, color, size){
+  return `<svg class="tok" width="${size}" height="${size}" viewBox="0 0 24 24" `
+    + `fill="${color||"currentColor"}" aria-hidden="true">${TOKEN(id).svg}</svg>`;
+}
 const PLAYER_COLORS = ["#e0503d","#3d7be0","#2fbf6b","#e8c15a","#a26bd4","#e07f3d","#4dc4cf","#d45f9e"];
 const RAIL_RENT = [0,25,50,100,200];
 const TOTAL_HOUSES = 32, TOTAL_HOTELS = 12;
@@ -340,7 +378,8 @@ function newGameState(name, players, opts){
     v:2, name, createdAt: Date.now(), endedAt: null,
     settings: { startingCash: opts.startingCash, goAmount: opts.goAmount, freeParking: opts.freeParking },
     players: players.map((p,i)=>({ id:"p"+(i+1)+"_"+Math.random().toString(36).slice(2,7),
-      name:p.name, color:p.color, balance:opts.startingCash, bankrupt:false, stats:newStats() })),
+      name:p.name, color:p.color, token:p.token || TOKENS[i%TOKENS.length].id,
+      balance:opts.startingCash, bankrupt:false, stats:newStats() })),
     props: {},           // propId -> {owner, mortgaged, houses}
     freeParking: 0,
     log: [],
@@ -350,7 +389,10 @@ function newGameState(name, players, opts){
 /* Older saved games predate the stats tallies — backfill on load. */
 function migrateState(st){
   if (!st) return st;
-  st.players.forEach(p=>{ p.stats = Object.assign(newStats(), p.stats||{}); });
+  st.players.forEach((p,i)=>{
+    p.stats = Object.assign(newStats(), p.stats||{});
+    if (!p.token) p.token = TOKENS[i%TOKENS.length].id;   // games from before pieces existed
+  });
   if (st.endedAt === undefined) st.endedAt = null;
   st.v = 2;
   return st;
@@ -475,7 +517,7 @@ function computeStandings(){
     });
     const st = Object.assign(newStats(), p.stats||{});
     return Object.assign({
-      name:p.name, color:p.color,
+      name:p.name, color:p.color, token:p.token || TOKENS[0].id,
       bankrupt:!!p.bankrupt, won: p.id===winner,
       cash:Math.round(p.balance), netWorth:Math.round(netWorth(p)),
       props:owned.length, monopolies:monopoliesOf(p.id),
@@ -814,7 +856,7 @@ async function loadLeaderboard(){
       const medal = games && i===0 && wins>0 ? "🏆" : "";
       return `<button class="lbrow" data-player="${esc(r.player_name)}">
         <span class="lbrank">${i+1}</span>
-        <span class="lbdot" style="background:${esc(r.color||"#888")}"></span>
+        <span class="lbdot">${tokenSVG(r.token, r.color||"#888", 24)}</span>
         <span class="lbname">${esc(r.player_name)} ${medal}
           <small>${games} game${games===1?"":"s"}${(+r.in_progress)? " · "+r.in_progress+" in play":""}${
             games? " · avg net "+fmt(r.avg_net_worth||0) : ""}</small></span>
@@ -831,13 +873,18 @@ async function loadLeaderboard(){
 
 function openPlayerStats(name){
   const w = openPanel(`
-    <h2>${esc(name)}</h2>
+    <h2 id="ps_head">${esc(name)}</h2>
     <div class="sub">Career record</div>
     <div class="pscroll" id="ps_body"><div class="note">Loading…</div></div>
   `);
   fetchPlayerGames(name).then(rows=>{
     const body = w.querySelector("#ps_body"); if (!body) return;
     if (!rows || !rows.length){ body.innerHTML = `<div class="note">No games recorded yet.</div>`; return; }
+    const head = w.querySelector("#ps_head");
+    if (head && rows[0].token){
+      head.classList.add("withtok");
+      head.innerHTML = tokenSVG(rows[0].token, rows[0].color, 22) + " " + esc(name);
+    }
     const done = rows.filter(r=>r.finished);
     const sum = k => rows.reduce((a,r)=>a + (+r[k]||0), 0);
     const wins = done.filter(r=>r.won).length;
@@ -882,7 +929,8 @@ function openPlayerStats(name){
 /* ----- SETUP ----- */
 function renderSetup(){
   closeAllPanels();
-  const roster = [ {name:"", color:PLAYER_COLORS[0]}, {name:"", color:PLAYER_COLORS[1]} ];
+  const roster = [ {name:"", color:PLAYER_COLORS[0], token:TOKENS[0].id},
+                   {name:"", color:PLAYER_COLORS[1], token:TOKENS[1].id} ];
   let opts = { startingCash:1500, goAmount:200, freeParking:false };
   setApp(`
     <div class="hdr">
@@ -916,7 +964,8 @@ function renderSetup(){
   const paintPlayers = ()=>{
     $("#s_players").innerHTML = roster.map((p,i)=>`
       <div class="prow">
-        <button class="swatch" style="background:${p.color}" data-color="${i}" aria-label="color"></button>
+        <button class="swatch tokbtn" data-pick="${i}" aria-label="Choose playing piece">
+          ${tokenSVG(p.token, p.color, 30)}</button>
         <input type="text" placeholder="Player ${i+1}" value="${esc(p.name)}" data-name="${i}" maxlength="20">
         ${roster.length>2? `<button class="rm" data-rm="${i}">✕</button>`:""}
       </div>`).join("");
@@ -932,8 +981,9 @@ function renderSetup(){
     const avail = savedRoster.filter(r=>r.name && !taken.has(r.name.toLowerCase()));
     $("#s_roster").hidden = avail.length===0;
     box.innerHTML = avail.map(r=>
-      `<button class="chip pchip" data-add-name="${esc(r.name)}" data-add-color="${esc(r.color||"")}">
-        <i style="background:${esc(r.color||"#888")}"></i>${esc(r.name)}</button>`).join("");
+      `<button class="chip pchip" data-add-name="${esc(r.name)}" data-add-color="${esc(r.color||"")}"
+        data-add-token="${esc(r.token||"")}">
+        ${tokenSVG(r.token, r.color||"var(--ink2)", 17)}${esc(r.name)}</button>`).join("");
   }
   if (hasCreds() && session){
     fetchRoster().then(rows=>{ savedRoster = rows||[]; paintChips(); });
@@ -941,20 +991,61 @@ function renderSetup(){
   $("#s_chips").addEventListener("click", e=>{
     const b = e.target.closest("[data-add-name]"); if (!b) return;
     const name = b.dataset.addName, color = b.dataset.addColor;
+    // reuse their usual piece unless someone at this table already has it
+    const used = roster.map(r=>r.token);
+    let tok = b.dataset.addToken;
+    if (!tok || used.includes(tok)) tok = (TOKENS.find(t=>!used.includes(t.id))||TOKENS[0]).id;
     const blank = roster.findIndex(r=>!r.name.trim());
-    if (blank >= 0){ roster[blank].name = name; if (color) roster[blank].color = color; }
-    else {
+    if (blank >= 0){
+      roster[blank].name = name;
+      if (color) roster[blank].color = color;
+      const others = roster.filter((r,j)=>j!==blank).map(r=>r.token);
+      roster[blank].token = (b.dataset.addToken && !others.includes(b.dataset.addToken))
+        ? b.dataset.addToken : (TOKENS.find(t=>!others.includes(t.id))||TOKENS[0]).id;
+    } else {
       if (roster.length>=8) return toast("Max 8 players");
-      roster.push({ name, color: color || PLAYER_COLORS[roster.length%PLAYER_COLORS.length] });
+      roster.push({ name, color: color || PLAYER_COLORS[roster.length%PLAYER_COLORS.length], token: tok });
     }
     paintPlayers(); paintChips();
   });
 
+  function openPiecePicker(i){
+    const me = roster[i];
+    const taken = roster.filter((r,j)=>j!==i).map(r=>r.token);
+    const w = openPanel(`
+      <h2>Playing piece</h2>
+      <div class="sub">${esc(me.name.trim() || "Player "+(i+1))}</div>
+      <div class="pscroll">
+        <div class="tokgrid">
+          ${TOKENS.map(t=>`
+            <button class="tokopt ${t.id===me.token?"sel":""}" data-tok="${t.id}"
+              ${taken.includes(t.id)?"disabled":""} title="${esc(t.name)}">
+              ${tokenSVG(t.id, t.id===me.token? me.color : "var(--ink2)", 34)}
+              <span>${esc(t.name)}</span>
+            </button>`).join("")}
+        </div>
+        <div class="grouphdr">Colour</div>
+        <div class="chips">
+          ${PLAYER_COLORS.map(c=>`<button class="colopt ${c===me.color?"sel":""}"
+            data-col="${c}" style="background:${c}" aria-label="colour"></button>`).join("")}
+        </div>
+      </div>
+    `);
+    w.querySelector(".pscroll").addEventListener("click", e=>{
+      const t = e.target.closest("[data-tok]");
+      if (t && !t.disabled){ me.token = t.dataset.tok; closePanel(w); paintPlayers(); paintChips(); return; }
+      const c = e.target.closest("[data-col]");
+      if (c){ me.color = c.dataset.col; closePanel(w); paintPlayers(); paintChips(); }
+    });
+  }
+
   $("#s_back").addEventListener("click", renderHome);
   $("#s_add").addEventListener("click", ()=>{
     if (roster.length>=8) return toast("Max 8 players");
-    roster.push({name:"", color:PLAYER_COLORS[roster.length%PLAYER_COLORS.length]});
-    paintPlayers();
+    const used = roster.map(r=>r.token);
+    const free = TOKENS.find(t=>!used.includes(t.id)) || TOKENS[roster.length%TOKENS.length];
+    roster.push({name:"", color:PLAYER_COLORS[roster.length%PLAYER_COLORS.length], token:free.id});
+    paintPlayers(); paintChips();
   });
   $("#s_players").addEventListener("input", e=>{
     if (e.target.dataset.name!==undefined){
@@ -963,11 +1054,8 @@ function renderSetup(){
     }
   });
   $("#s_players").addEventListener("click", e=>{
-    const c = e.target.closest("[data-color]");
-    if (c){ const i=+c.dataset.color;
-      roster[i].color = PLAYER_COLORS[(PLAYER_COLORS.indexOf(roster[i].color)+1)%PLAYER_COLORS.length];
-      paintPlayers();
-    }
+    const c = e.target.closest("[data-pick]");
+    if (c) openPiecePicker(+c.dataset.pick);
     const rm = e.target.closest("[data-rm]");
     if (rm){ roster.splice(+rm.dataset.rm,1); paintPlayers(); paintChips(); }
   });
@@ -980,7 +1068,7 @@ function renderSetup(){
     opts.startingCash = Math.max(0, +$("#s_cash").value || 1500);
     opts.goAmount = Math.max(0, +$("#s_go").value || 200);
     const name = $("#s_name").value.trim() || ("Game — " + new Date().toLocaleDateString());
-    S = newGameState(name, roster.map((p,i)=>({name:names[i], color:p.color})), opts);
+    S = newGameState(name, roster.map((p,i)=>({name:names[i], color:p.color, token:p.token})), opts);
     gameId = null; snapshots = [];
     logLine("Game started — " + names.join(", ") + ` (${fmt(opts.startingCash)} each)`);
     renderGame();
@@ -1015,6 +1103,7 @@ function renderGame(){
           <div class="pcard ${p.bankrupt?"bankrupt":""}">
             <div class="stripe" style="background:${p.color}"></div>
             <button class="phead" data-pl="${p.id}">
+              ${tokenSVG(p.token, p.color, 22)}
               <span class="pn">${esc(p.name)}</span>
               <span class="pb ${p.balance<0?"neg":""}">${fmtS(p.balance)}</span>
               <span class="more">⋯</span>
@@ -1085,7 +1174,7 @@ function openPlayerSheet(plId){
   if (pl.bankrupt){ toast(pl.name + " is bankrupt"); return; }
   const props = playerProps(plId);
   openPanel(`
-    <h2><span style="color:${pl.color}">●</span> ${esc(pl.name)}</h2>
+    <h2 class="withtok">${tokenSVG(pl.token, pl.color, 22)} ${esc(pl.name)}</h2>
     <div class="sub">${fmtS(pl.balance)} cash · ${props.length} properties · net worth ~${fmt(netWorth(pl))}</div>
     <div class="pscroll">
       <button class="act green" data-a="go"><span class="ic">🚀</span>Pass GO<span class="meta">+${fmt(S.settings.goAmount)}</span></button>
@@ -1111,7 +1200,7 @@ function pickPlayer(title, exceptId, cb, opts={}){
     <h2>${esc(title)}</h2>
     <div class="pscroll">
       ${opts.allowBank? `<button class="act" data-pk="BANK"><span class="ic">🏦</span>The Bank</button>`:""}
-      ${list.map(p=>`<button class="act" data-pk="${p.id}"><span class="ic" style="color:${p.color}">●</span>${esc(p.name)}<span class="meta">${fmtS(p.balance)}</span></button>`).join("")}
+      ${list.map(p=>`<button class="act" data-pk="${p.id}"><span class="ic">${tokenSVG(p.token,p.color,21)}</span>${esc(p.name)}<span class="meta">${fmtS(p.balance)}</span></button>`).join("")}
     </div>
   `, w=>{
     w.querySelector(".pscroll").addEventListener("click", e=>{
@@ -1490,9 +1579,11 @@ function openAddPlayer(){
       closePanel(w);
       const used = S.players.map(p=>p.color);
       const color = PLAYER_COLORS.find(x=>!used.includes(x)) || PLAYER_COLORS[S.players.length%PLAYER_COLORS.length];
+      const usedTok = S.players.map(p=>p.token);
+      const tok = (TOKENS.find(t=>!usedTok.includes(t.id)) || TOKENS[0]).id;
       mutate(()=>{
         S.players.push({ id:"p"+(S.players.length+1)+"_"+Math.random().toString(36).slice(2,7),
-          name:n, color, balance:c, bankrupt:false });
+          name:n, color, token:tok, balance:c, bankrupt:false, stats:newStats() });
       }, n+" joined with "+fmt(c));
     });
   });
