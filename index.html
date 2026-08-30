@@ -110,6 +110,115 @@
   .lbbar{display:block; height:4px; border-radius:2px; background:var(--line); margin-top:5px; overflow:hidden}
   .lbbar i{display:block; height:100%; background:var(--green)}
 
+  /* ================= Game Night (TV dashboard) ================= */
+  body.tvmode{overflow:hidden}
+  body.tvmode #app{max-width:none}
+  .tvsignin{height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:6px; text-align:center}
+  .tvsignin .logo{font-size:52px}
+  .tvsignin h1{font-size:34px; font-weight:900}
+  .tvsignin p{color:var(--ink2); font-size:16px}
+
+  .tv{height:100vh; display:grid; gap:.9vh 1vw; padding:1.2vh 1.1vw;
+    grid-template-columns:1.55fr 1fr;
+    grid-template-rows:auto minmax(0,1fr) minmax(0,.62fr);
+    grid-template-areas:"hdr hdr" "players pred" "chart log";}
+  .tvhdr{grid-area:hdr; display:flex; align-items:baseline; gap:1.6vw; padding:0 .3vw .4vh}
+  .tvtitle{font-size:2.5vh; font-weight:900; letter-spacing:.3px; display:flex; align-items:baseline; gap:.8vw}
+  .tvtitle small{font-size:1.7vh; font-weight:700; color:var(--ink2)}
+  .tvmeta{margin-left:auto; display:flex; gap:1.5vw; font-size:1.6vh; color:var(--ink2)}
+  .tvmeta b{color:var(--ink); font-weight:800}
+  .tvlive{display:inline-flex; align-items:center; gap:.5vw; color:var(--green); font-weight:800}
+  .tvlive i{width:.9vh; height:.9vh; border-radius:50%; background:var(--green);
+    animation:pulse 2s ease-in-out infinite}
+  .tvlive.err{color:var(--gold)} .tvlive.err i{background:var(--gold)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  .tvplayers{grid-area:players; display:grid; gap:.9vh .8vw; min-height:0;
+    grid-template-columns:repeat(auto-fit,minmax(15.5vw,1fr));
+    grid-auto-rows:minmax(0,max-content); align-content:start; overflow:hidden}
+  .tvcard{position:relative; background:var(--card); border:1px solid var(--line);
+    border-radius:1.2vh; padding:1.1vh 1vw .9vh; overflow:hidden; min-height:0}
+  .tvcard .stripe{position:absolute; top:0; left:0; right:0; height:.5vh}
+  .tvcard.lead{border-color:rgba(47,191,107,.5); background:rgba(47,191,107,.06)}
+  .tvcard.out{opacity:.42}
+  .tvtop{display:flex; align-items:center; gap:.6vw; margin-top:.4vh}
+  .tvname{font-size:2.1vh; font-weight:900; flex:1; min-width:0; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis}
+  .crown{font-size:1.2vh; font-weight:800; color:var(--green); background:rgba(47,191,107,.14);
+    padding:.2vh .6vh; border-radius:.6vh; vertical-align:middle}
+  .tvcash{font-size:2.4vh; font-weight:900; font-variant-numeric:tabular-nums}
+  .tvcash.neg{color:var(--red)}
+  .tvstats{display:flex; flex-wrap:wrap; gap:.4vh 1vw; margin:.7vh 0 .8vh;
+    font-size:1.45vh; color:var(--ink3)}
+  .tvstats b{color:var(--ink2); font-weight:800}
+  .tvstats .odds b{color:var(--green)}
+  .tvprops{display:flex; flex-wrap:wrap; gap:.5vh}
+  .tvprops .grp{display:inline-flex; gap:2px; padding:2px; border-radius:.7vh;
+    background:color-mix(in srgb, var(--gc) 22%, transparent); border:1px solid transparent}
+  .tvprops .grp.full{border-color:var(--gc)}
+  .tvprops .pc{font-size:1.25vh; font-weight:700; color:var(--ink); background:var(--gc);
+    padding:.25vh .5vh; border-radius:.5vh; mix-blend-mode:normal; color:#0b0f0d;
+    display:inline-flex; align-items:center; gap:.3vh; white-space:nowrap}
+  .tvprops .pc.mort{opacity:.35; text-decoration:line-through}
+  .tvprops .pc i{font-style:normal; font-weight:900; background:rgba(0,0,0,.35); color:#fff;
+    border-radius:.4vh; padding:0 .35vh}
+  .tvempty{font-size:1.4vh; color:var(--ink3)}
+
+  .tvpanel{background:var(--card); border:1px solid var(--line); border-radius:1.2vh;
+    padding:1vh 1vw; display:flex; flex-direction:column; min-height:0}
+  .tvpanel h3{font-size:1.5vh; font-weight:800; letter-spacing:.9px; text-transform:uppercase;
+    color:var(--ink3); display:flex; align-items:baseline; gap:.7vw; margin-bottom:.8vh; flex:none}
+  .tvpanel h3 small{font-size:1.3vh; letter-spacing:0; text-transform:none; color:var(--ink3); font-weight:600}
+  .tvpred{grid-area:pred}
+  .predlist{display:flex; flex-direction:column; gap:.7vh; overflow:hidden; min-height:0;
+    flex:1; justify-content:space-evenly}
+  .predrow{display:grid; grid-template-columns:auto 1fr auto; grid-template-areas:
+    "tok name pct" "bar bar bar" "fac fac fac"; align-items:center; gap:.3vh .6vw;
+    padding:.7vh .8vw; border-radius:1vh; background:var(--bg2); border:1px solid transparent}
+  .predrow.lead{border-color:rgba(47,191,107,.4); background:rgba(47,191,107,.07)}
+  .predrow.out{opacity:.4; grid-template-areas:"tok name pct"}
+  .predrow svg.tok{grid-area:tok}
+  .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
+  .predrow .why{grid-area:name; justify-self:end; font-size:1.3vh; color:var(--ink3);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:12vw}
+  .predrow .pct{grid-area:pct; font-size:2.2vh; font-weight:900; font-variant-numeric:tabular-nums}
+  .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
+  .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
+  .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.2vh}
+  .fbar{flex:1; height:.45vh; border-radius:.3vh; background:var(--line); overflow:hidden}
+  .fbar i{display:block; height:100%; opacity:.75}
+
+  .tvlog{grid-area:log}
+  .logscroll{overflow:hidden; display:flex; flex-direction:column; gap:.35vh; min-height:0;
+    -webkit-mask-image:linear-gradient(to bottom, #000 88%, transparent 100%);
+    mask-image:linear-gradient(to bottom, #000 88%, transparent 100%)}
+  .tvlogrow{display:flex; gap:.7vw; font-size:1.55vh; line-height:1.35;
+    padding:.35vh 0; border-bottom:1px solid var(--line)}
+  .tvlogrow .lt{color:var(--ink3); font-size:1.25vh; flex:none; width:4.6vw;
+    font-variant-numeric:tabular-nums; padding-top:.2vh}
+  .tvlogrow .lx{flex:1}
+
+  .tvchart{grid-area:chart}
+  .chartlegend{display:flex; flex-wrap:wrap; gap:.4vh 1vw; margin-bottom:.5vh; flex:none}
+  .lgd{display:inline-flex; align-items:center; gap:.4vw; font-size:1.35vh; color:var(--ink2); font-weight:700}
+  .lgd i{width:1.1vh; height:1.1vh; border-radius:.3vh; display:inline-block}
+  .chartbox{position:relative; flex:1; min-height:0}
+  .chartbox svg{display:block}
+  .chartbox .gl{stroke:var(--line); stroke-width:1}
+  .chartbox .ax-line{stroke:var(--line); stroke-width:1}
+  .chartbox .ax{fill:var(--ink3); font-size:11px; font-weight:600}
+  .chartbox .sep{fill:none; stroke:var(--card); stroke-width:2}
+  .chartbox .dl{fill:var(--ink2); font-size:12px; font-weight:700}
+  .chartbox .dlv{font-size:13px; font-weight:900}
+  .chartbox .cross{stroke:var(--ink2); stroke-width:1; stroke-opacity:.7}
+  .charttip{position:absolute; top:4px; background:#000; border:1px solid var(--line);
+    border-radius:.8vh; padding:.6vh .8vh; font-size:1.3vh; pointer-events:none; min-width:9vw}
+  .charttip .tt{color:var(--ink3); font-weight:700; margin-bottom:.3vh}
+  .charttip div{display:flex; align-items:center; gap:.4vw; white-space:nowrap}
+  .charttip i{width:1vh; height:1vh; border-radius:.25vh; display:inline-block}
+  .charttip b{margin-left:auto; font-variant-numeric:tabular-nums}
+
   /* stat tiles */
   .tiles{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 6px}
   @media (min-width:460px){ .tiles{grid-template-columns:1fr 1fr 1fr} }
@@ -341,7 +450,9 @@ function tokenSVG(id, color, size){
   return `<svg class="tok" width="${size}" height="${size}" viewBox="0 0 24 24" `
     + `fill="${color||"currentColor"}" aria-hidden="true">${TOKEN(id).svg}</svg>`;
 }
-const PLAYER_COLORS = ["#e0503d","#3d7be0","#2fbf6b","#e8c15a","#a26bd4","#e07f3d","#4dc4cf","#d45f9e"];
+/* Categorical palette, fixed order — validated for the dark surface:
+   lightness band, chroma floor, CVD separation, normal-vision floor, contrast. */
+const PLAYER_COLORS = ["#3987e5","#d95926","#199e70","#c98500","#d55181","#008300","#9085e9","#e66767"];
 const RAIL_RENT = [0,25,50,100,200];
 const TOTAL_HOUSES = 32, TOTAL_HOTELS = 12;
 
@@ -389,6 +500,7 @@ function newGameState(name, players, opts){
 /* Older saved games predate the stats tallies — backfill on load. */
 function migrateState(st){
   if (!st) return st;
+  if (!Array.isArray(st.probTimeline)) st.probTimeline = [];
   st.players.forEach((p,i)=>{
     p.stats = Object.assign(newStats(), p.stats||{});
     if (!p.token) p.token = TOKENS[i%TOKENS.length].id;   // games from before pieces existed
@@ -437,13 +549,97 @@ function rentFor(pid, diceRoll){
   return p.rent[h];
 }
 function netWorth(pl){
-  let w = pl.balance;
+  let w = Number(pl.balance) || 0;
   for (const p of playerProps(pl.id)){
     const st = S.props[p.id];
-    w += st.mortgaged ? 0 : p.price/2;               // mortgage value still extractable
-    if (st.houses) w += (st.houses===5?5:st.houses) * (p.house/2);
+    w += st.mortgaged ? 0 : (p.price||0)/2;          // mortgage value still extractable
+    if (st.houses && p.house) w += (st.houses===5?5:st.houses) * (p.house/2);
   }
-  return w;
+  return Math.round(w);
+}
+
+/* ---------------- Win predictor ----------------
+   A transparent heuristic, not a simulation. Four factors, each scored as a
+   share of the table, then sharpened as the board fills up so the odds go from
+   near-even at the start to decisive once monopolies are developed. */
+const PRED_WEIGHTS = { netWorth:0.35, monopolies:0.30, development:0.20, cash:0.15 };
+const GROUP_CLOUT = {           // rough earning power of a full set
+  brown:0.45, ltblue:0.6, pink:0.8, orange:1.0, red:1.05, yellow:1.1, green:1.2, dkblue:1.25
+};
+function predict(){
+  const alive = S.players.filter(p=>!p.bankrupt);
+  const out = { probs:{}, factors:{}, leader:null, decisive:0 };
+  if (!alive.length) return out;
+  if (alive.length === 1){
+    out.probs[alive[0].id] = 1; out.leader = alive[0].id;
+    out.factors[alive[0].id] = { netWorth:1, monopolies:1, development:1, cash:1 };
+    return out;
+  }
+  const raw = alive.map(p=>{
+    const owned = playerProps(p.id);
+    let houses = 0, hotels = 0, clout = 0;
+    owned.forEach(pr=>{
+      const st = S.props[pr.id];
+      if (st.houses === 5) hotels++; else houses += st.houses || 0;
+    });
+    Object.keys(GROUP_CLOUT).forEach(g=>{
+      if (ownsFullGroup(p.id, g) && !groupHasMortgage(g)) clout += GROUP_CLOUT[g];
+    });
+    // railroads and utilities add steady, lower-grade income
+    const rails = GROUP_MEMBERS.rail.filter(id=>S.props[id] && S.props[id].owner===p.id).length;
+    const utils = GROUP_MEMBERS.util.filter(id=>S.props[id] && S.props[id].owner===p.id).length;
+    clout += rails * 0.16 + utils * 0.08;
+    return { id:p.id, netWorth:Math.max(0, netWorth(p)), clout,
+             development: houses + hotels * 2.2, cash:Math.max(0, p.balance) };
+  });
+  const share = (key) => {
+    const total = raw.reduce((a,r)=>a + r[key], 0);
+    return r => total > 0 ? r[key]/total : 1/raw.length;
+  };
+  const nwShare = share("netWorth"), clShare = share("clout"),
+        devShare = share("development"), cashShare = share("cash");
+  const scored = raw.map(r=>{
+    const f = { netWorth:nwShare(r), monopolies:clShare(r),
+                development:devShare(r), cash:cashShare(r) };
+    out.factors[r.id] = f;
+    const score = f.netWorth*PRED_WEIGHTS.netWorth + f.monopolies*PRED_WEIGHTS.monopolies
+                + f.development*PRED_WEIGHTS.development + f.cash*PRED_WEIGHTS.cash;
+    return { id:r.id, score:Math.max(score, 1e-4) };
+  });
+  // how far along the game is → how confident the odds get
+  const ownedCount = Object.keys(S.props).filter(k=>S.props[k].owner).length;
+  const anyMonopoly = raw.some(r=>r.clout >= 0.4);
+  const progress = Math.min(1, ownedCount/BOARD.length * (anyMonopoly ? 1.25 : 0.75));
+  const K = 1.4 + 2.6 * progress;
+  out.decisive = progress;
+  const pow = scored.map(x=>({ id:x.id, v:Math.pow(x.score, K) }));
+  const sum = pow.reduce((a,x)=>a + x.v, 0) || 1;
+  pow.forEach(x=>{ out.probs[x.id] = x.v/sum; });
+  S.players.forEach(p=>{ if (p.bankrupt) out.probs[p.id] = 0; });
+  out.leader = pow.slice().sort((a,b)=>b.v-a.v)[0].id;
+  return out;
+}
+/* One-line explanation of why someone sits where they do. */
+function predictWhy(plId, f){
+  if (!f) return "";
+  const pl = player(plId);
+  if (pl.bankrupt) return "out of the game";
+  const bits = [];
+  const mono = Object.keys(GROUP_CLOUT).filter(g=>ownsFullGroup(plId,g)).length;
+  if (mono >= 2) bits.push(mono+" monopolies");
+  else if (mono === 1) bits.push("a monopoly");
+  const owned = playerProps(plId);
+  let built = 0; owned.forEach(pr=>{ built += S.props[pr.id].houses||0; });
+  if (built >= 6) bits.push("heavily developed");
+  else if (built > 0) bits.push("building up");
+  if (!bits.length && owned.length) bits.push(owned.length+" properties");
+  if (!owned.length) bits.push("no property yet");
+  const cashRank = S.players.filter(x=>!x.bankrupt).sort((a,b)=>b.balance-a.balance);
+  if (cashRank.length > 1 && cashRank[0].id === plId) bits.push("most cash");
+  else if (f.cash < 0.12) bits.push("thin on cash");
+  const mortgaged = owned.filter(pr=>S.props[pr.id].mortgaged).length;
+  if (mortgaged >= 2) bits.push(mortgaged+" mortgaged");
+  return bits.slice(0,3).join(", ");
 }
 
 /* ---------------- Mutations (all go through mutate()) ---------------- */
@@ -459,9 +655,27 @@ function mutate(fn, logText){
   pushSnapshot();
   fn();
   if (logText) logLine(logText);
+  sampleProbabilities();   // keeps the Game Night timeline dense
   renderGame();
   scheduleSave();
 }
+/* Win-probability timeline. Stored as {t, p:[…]} aligned to S.players order so
+   the Game Night view can draw the whole arc of the game. */
+function sampleProbabilities(){
+  if (!S) return;
+  if (!Array.isArray(S.probTimeline)) S.probTimeline = [];
+  const probs = predict().probs;
+  const row = S.players.map(p=>Math.round((probs[p.id]||0)*1000)/1000);
+  const last = S.probTimeline[S.probTimeline.length-1];
+  const moved = !last || last.p.length !== row.length
+    || row.some((v,i)=>Math.abs(v - last.p[i]) >= 0.015);
+  const stale = last && (Date.now() - last.t) > 90000;
+  if (!last || moved || stale){
+    S.probTimeline.push({ t: Date.now(), p: row });
+    if (S.probTimeline.length > 600) S.probTimeline.splice(0, S.probTimeline.length - 600);
+  }
+}
+
 function undo(){
   if (!snapshots.length){ toast("Nothing to undo"); return; }
   const last = S.log[0];
@@ -652,6 +866,7 @@ async function saveNow(){
   // the roster + game_stats table in sync on every save.
   S.standings = computeStandings();
   S.meta = gameMeta();
+  sampleProbabilities();
   const stateRef = S;
   try {
     if (!gameId){
@@ -670,6 +885,10 @@ async function saveNow(){
   }
   saveBusy = false;
   if (savePending){ savePending=false; saveNow(); }
+}
+async function fetchGame(id){
+  const rows = await sb("/rest/v1/games?id=eq."+encodeURIComponent(id)+"&select=id,name,state,updated_at&limit=1");
+  return rows && rows[0];
 }
 async function fetchRoster(){
   try { return await sb("/rest/v1/players?select=name,color&order=last_played_at.desc&limit=40"); }
@@ -815,10 +1034,13 @@ async function renderHome(){
           <div class="gn">${esc(r.name)}${st.finished? `<span class="tag gold">finished</span>`:""}</div>
           <div class="gm">${pls.map(p=>esc(p.name)).join(" · ")||"—"} &nbsp;·&nbsp; ${alive} active &nbsp;·&nbsp; ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})}</div>
         </div>
+        <button class="del" data-tv="${r.id}" aria-label="Open Game Night view" title="Game Night view">📺</button>
         <button class="del" data-del="${r.id}" aria-label="Delete">🗑</button>
       </div>`;
     }).join("");
     list.addEventListener("click", async e=>{
+      const tv = e.target.closest("[data-tv]");
+      if (tv){ e.stopPropagation(); window.open(location.pathname+"?tv="+tv.dataset.tv, "_blank"); return; }
       const del = e.target.closest("[data-del]");
       if (del){
         e.stopPropagation();
@@ -1533,6 +1755,8 @@ function openMenu(){
   openPanel(`
     <h2>More</h2>
     <div class="pscroll">
+      <button class="act green" id="m_tv"><span class="ic">📺</span>Open Game Night view
+        <span class="sub2">full-screen dashboard to cast to the TV</span></button>
       <button class="act" id="m_save"><span class="ic">💾</span>Save now</button>
       <button class="act" id="m_rename"><span class="ic">✏️</span>Rename game</button>
       <button class="act" id="m_addpl"><span class="ic">🙋</span>Add a player</button>
@@ -1540,6 +1764,13 @@ function openMenu(){
       <button class="act red" id="m_finish"><span class="ic">🏁</span>${S.finished? "Reopen game":"Finish game"}</button>
     </div>
   `, w=>{
+    w.querySelector("#m_tv").addEventListener("click", ()=>{ closePanel(w);
+      if (!canSave()) return toast("Sign in first — the TV view reads the saved game");
+      if (!gameId){ toast("Saving first…"); clearTimeout(saveTimer); saveTimer=null;
+        saveNow().then(()=>{ if (gameId) window.open(location.pathname+"?tv="+gameId, "_blank"); });
+        return; }
+      window.open(location.pathname+"?tv="+gameId, "_blank");
+    });
     w.querySelector("#m_save").addEventListener("click", ()=>{ closePanel(w);
       if (!hasCreds()) return openSettings();
       if (!session) return toast("Sign in on the home screen to save");
@@ -1619,9 +1850,281 @@ function openSettings(){
   });
 }
 
+
+/* ================= GAME NIGHT (TV dashboard) =================
+   Read-only. Opened as ?tv=<gameId>, polls the saved game every few
+   seconds so it follows whatever the banker does on their phone. */
+let tvGameId = null, tvTimer = null, tvLastUpdated = null, tvHover = null;
+
+function isTV(){ return new URLSearchParams(location.search).has("tv"); }
+
+async function renderTVBoot(){
+  tvGameId = new URLSearchParams(location.search).get("tv");
+  document.body.classList.add("tvmode");
+  if (!hasCreds() || !session){
+    setApp(`<div class="tvsignin"><div class="logo">🎩</div>
+      <h1>Game Night</h1>
+      <p>Sign in on this browser first, then reopen this screen.</p></div>`);
+    return;
+  }
+  setApp(`<div class="tvsignin"><div class="logo">🎩</div><h1>Game Night</h1><p>Loading the game…</p></div>`);
+  await tvRefresh();
+  clearInterval(tvTimer);
+  tvTimer = setInterval(()=>{ if (!document.hidden) tvRefresh(); }, 4000);
+}
+
+async function tvRefresh(){
+  try {
+    const row = await fetchGame(tvGameId);
+    if (!row){ setApp(`<div class="tvsignin"><h1>Game not found</h1>
+      <p>It may have been deleted.</p></div>`); clearInterval(tvTimer); return; }
+    S = migrateState(row.state);
+    S.name = row.name;
+    tvLastUpdated = row.updated_at;
+    renderTV();
+  } catch(e){
+    console.error(e);
+    const st = document.querySelector("#tv_live");
+    if (st){ st.className = "tvlive err"; st.innerHTML = "<i></i>reconnecting…"; }
+  }
+}
+
+function elapsedLabel(ms){
+  const m = Math.max(0, Math.round(ms/60000));
+  return m < 60 ? m + " min" : Math.floor(m/60) + "h " + (m%60) + "m";
+}
+
+function renderTV(){
+  const pred = predict();
+  const hu = housesInUse();
+  const alive = S.players.filter(p=>!p.bankrupt);
+  const order = S.players.slice().sort((a,b)=>{
+    if (a.bankrupt !== b.bankrupt) return a.bankrupt ? 1 : -1;
+    return (pred.probs[b.id]||0) - (pred.probs[a.id]||0);
+  });
+
+  setApp(`
+    <div class="tv">
+      <header class="tvhdr">
+        <div class="tvtitle">Game Night<small>${esc(S.name)}</small></div>
+        <div class="tvmeta">
+          <span><b>${elapsedLabel(Date.now() - S.createdAt)}</b> elapsed</span>
+          <span><b>${alive.length}</b> still in</span>
+          <span>🏠 <b>${TOTAL_HOUSES - hu.houses}</b> · 🏨 <b>${TOTAL_HOTELS - hu.hotels}</b> left</span>
+          ${S.settings.freeParking ? `<span>🅿️ <b>${fmt(S.freeParking)}</b></span>` : ""}
+          <span id="tv_live" class="tvlive"><i></i>live</span>
+        </div>
+      </header>
+
+      <section class="tvplayers">
+        ${order.map(p=>tvPlayerCard(p, pred)).join("")}
+      </section>
+
+      <section class="tvpanel tvpred">
+        <h3>Win probability
+          <small>${S.finished ? "final" : (pred.decisive < .3 ? "early — anyone's game"
+            : pred.decisive < .65 ? "taking shape" : "late game")}</small></h3>
+        <div class="predlist">
+          ${order.filter(p=>!p.bankrupt).map(p=>tvPredRow(p, pred)).join("")}
+          ${S.players.filter(p=>p.bankrupt).map(p=>`
+            <div class="predrow out">
+              ${tokenSVG(p.token, "var(--ink3)", 20)}
+              <span class="pname">${esc(p.name)}</span>
+              <span class="why">bankrupt</span><span class="pct">—</span>
+            </div>`).join("")}
+        </div>
+      </section>
+
+      <section class="tvpanel tvlog">
+        <h3>Game log <small>${S.log.length} events</small></h3>
+        <div class="logscroll">
+          ${S.log.slice(0,60).map(l=>{
+            const d = new Date(l.t);
+            return `<div class="tvlogrow"><span class="lt">${d.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</span>
+              <span class="lx">${esc(l.x)}</span></div>`;
+          }).join("") || `<div class="tvempty">Nothing yet — transactions appear here.</div>`}
+        </div>
+      </section>
+
+      <section class="tvpanel tvchart">
+        <h3>Win probability over time<small>each band is a player's share of the odds</small></h3>
+        <div class="chartlegend">${S.players.map(p=>`
+          <span class="lgd"><i style="background:${p.color}"></i>${esc(p.name)}</span>`).join("")}</div>
+        <div id="tv_chart" class="chartbox"></div>
+      </section>
+    </div>
+  `);
+  drawProbChart(pred);
+}
+
+function tvPlayerCard(p, pred){
+  const owned = playerProps(p.id);
+  const byGroup = {};
+  owned.forEach(pr=>{ (byGroup[pr.group] = byGroup[pr.group]||[]).push(pr); });
+  const monos = Object.keys(GROUP_CLOUT).filter(g=>ownsFullGroup(p.id,g));
+  let houses=0, hotels=0;
+  owned.forEach(pr=>{ const st=S.props[pr.id]; if (st.houses===5) hotels++; else houses+=st.houses||0; });
+  const pct = Math.round((pred.probs[p.id]||0)*100);
+  return `
+    <article class="tvcard ${p.bankrupt?"out":""} ${pred.leader===p.id && !p.bankrupt?"lead":""}">
+      <div class="stripe" style="background:${p.color}"></div>
+      <div class="tvtop">
+        ${tokenSVG(p.token, p.color, 30)}
+        <div class="tvname">${esc(p.name)}${pred.leader===p.id && !p.bankrupt?` <span class="crown">leading</span>`:""}</div>
+        <div class="tvcash ${p.balance<0?"neg":""}">${fmtS(p.balance)}</div>
+      </div>
+      <div class="tvstats">
+        <span><b>${fmt(netWorth(p))}</b> net worth</span>
+        <span><b>${owned.length}</b> properties</span>
+        <span><b>${monos.length}</b> monopolies</span>
+        <span><b>${houses}</b>🏠 <b>${hotels}</b>🏨</span>
+        ${p.bankrupt?"":`<span class="odds"><b>${pct}%</b> to win</span>`}
+      </div>
+      <div class="tvprops">
+        ${Object.keys(GROUPS).filter(g=>byGroup[g]).map(g=>`
+          <span class="grp ${monos.includes(g)?"full":""}" style="--gc:${GROUPS[g].color}">
+            ${byGroup[g].map(pr=>{
+              const st = S.props[pr.id];
+              const badge = st.houses===5 ? "🏨" : (st.houses ? String(st.houses) : "");
+              return `<span class="pc ${st.mortgaged?"mort":""}" title="${esc(pr.name)}">
+                ${esc(shortName(pr))}${badge?`<i>${badge}</i>`:""}</span>`;
+            }).join("")}
+          </span>`).join("") || `<span class="tvempty">no property yet</span>`}
+      </div>
+    </article>`;
+}
+
+function shortName(pr){
+  if (pr.group==="rail") return pr.name.replace(" Railroad","").replace("Reading","Read.").replace("Pennsylvania","Penn.").replace("B. & O.","B&O").replace("Short Line","Short L.");
+  if (pr.group==="util") return pr.name.replace("Electric Company","Electric").replace("Water Works","Water");
+  return pr.name.replace(" Avenue","").replace(" Ave","").replace(" Place","").replace(" Gardens","Gdns")
+    .replace("North Carolina","N. Carolina").replace("Mediterranean","Medit.").replace("Connecticut","Connect.")
+    .replace("Pennsylvania","Penn.").replace("St. Charles","St. Charles");
+}
+
+function tvPredRow(p, pred){
+  const pct = (pred.probs[p.id]||0)*100;
+  const f = pred.factors[p.id] || {};
+  const bar = (k,label) => `<span class="fbar" title="${label}">
+      <i style="width:${Math.round((f[k]||0)*100)}%; background:${p.color}"></i></span>`;
+  return `
+    <div class="predrow ${pred.leader===p.id?"lead":""}">
+      ${tokenSVG(p.token, p.color, 22)}
+      <span class="pname">${esc(p.name)}</span>
+      <span class="why">${esc(predictWhy(p.id, f))}</span>
+      <span class="pct">${pct<1?"<1":Math.round(pct)}%</span>
+      <span class="pbar"><i style="width:${Math.max(1,pct)}%; background:${p.color}"></i></span>
+      <span class="factors">
+        ${bar("netWorth","Net worth")}${bar("monopolies","Monopolies")}
+        ${bar("development","Development")}${bar("cash","Cash cushion")}
+      </span>
+    </div>`;
+}
+
+
+/* ---- Win-probability timeline: 100% stacked area, one band per player ----
+   Part-to-whole over time. Bands are separated by a 2px surface gap, the
+   right edge is direct-labelled, and a crosshair reads out every value. */
+function drawProbChart(pred){
+  const box = document.querySelector("#tv_chart");
+  if (!box) return;
+  const series = S.players;
+  let pts = (S.probTimeline||[]).slice().sort((a,b)=>a.t-b.t);
+  // always end on the current moment (never before the last recorded sample)
+  const now = series.map(p=>pred.probs[p.id]||0);
+  const lastT = pts.length ? pts[pts.length-1].t : S.createdAt;
+  pts.push({ t: Math.max(Date.now(), lastT + 1000), p: now });
+  if (pts.length < 2) pts.unshift({ t: S.createdAt, p: series.map(()=>1/Math.max(1,series.length)) });
+
+  const W = box.clientWidth || 900, H = box.clientHeight || 260;
+  const m = { t:14, r:132, b:26, l:44 };
+  const iw = Math.max(10, W - m.l - m.r), ih = Math.max(10, H - m.t - m.b);
+  const t0 = pts[0].t, t1 = pts[pts.length-1].t;
+  const n = pts.length;
+  const X = i => m.l + (n<2 ? iw : (i/(n-1))*iw);    // evenly spaced by move
+  const Y = v => m.t + (1 - v) * ih;
+
+  // cumulative stack per sample
+  const stacks = pts.map(s=>{
+    const total = s.p.reduce((a,b)=>a+b,0) || 1;
+    let acc = 0;
+    return s.p.map(v=>{ const lo = acc; acc += v/total; return [lo, acc]; });
+  });
+
+  const band = i => {
+    const top = pts.map((s,j)=>`${X(j).toFixed(1)},${Y(stacks[j][i][1]).toFixed(1)}`);
+    const bot = pts.map((s,j)=>`${X(j).toFixed(1)},${Y(stacks[j][i][0]).toFixed(1)}`).reverse();
+    return `M${top.join("L")}L${bot.join("L")}Z`;
+  };
+  const boundary = i => pts.map((s,j)=>`${X(j).toFixed(1)},${Y(stacks[j][i][1]).toFixed(1)}`).join("L");
+
+  const grid = [0.25,0.5,0.75].map(v=>
+    `<line class="gl" x1="${m.l}" y1="${Y(v)}" x2="${m.l+iw}" y2="${Y(v)}"/>
+     <text class="ax" x="${m.l-8}" y="${Y(v)+4}" text-anchor="end">${v*100}%</text>`).join("");
+
+  // direct labels at the right edge, only where the band has room
+  const last = stacks[stacks.length-1];
+  const labels = series.map((p,i)=>{
+    const h = (last[i][1]-last[i][0]) * ih;
+    if (h < 16) return "";
+    const y = Y((last[i][0]+last[i][1])/2);
+    const pct = Math.round((last[i][1]-last[i][0])*100);
+    return `<text class="dl" x="${m.l+iw+10}" y="${y-2}">${esc(p.name)}</text>
+            <text class="dlv" x="${m.l+iw+10}" y="${y+13}" style="fill:${p.color}">${pct}%</text>`;
+  }).join("");
+
+  const mins = Math.max(0, Math.round((t1-t0)/60000));
+  box.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" role="img"
+      aria-label="Win probability for each player over the course of the game">
+      ${grid}
+      ${series.map((p,i)=>`<path d="${band(i)}" fill="${p.color}" opacity=".92"/>`).join("")}
+      ${series.slice(0,-1).map((p,i)=>`<path d="M${boundary(i)}" class="sep"/>`).join("")}
+      <line class="ax-line" x1="${m.l}" y1="${m.t+ih}" x2="${m.l+iw}" y2="${m.t+ih}"/>
+      <text class="ax" x="${m.l}" y="${H-8}">game start</text>
+      <text class="ax" x="${m.l+iw}" y="${H-8}" text-anchor="end">now · ${n} moves · ${mins} min</text>
+      ${labels}
+      <g id="tv_cross" style="display:none">
+        <line class="cross" y1="${m.t}" y2="${m.t+ih}"/>
+      </g>
+      <rect id="tv_hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/>
+    </svg>
+    <div id="tv_tip" class="charttip" hidden></div>`;
+
+  // hover read-out
+  const svg = box.querySelector("svg"), hit = box.querySelector("#tv_hit");
+  const cross = box.querySelector("#tv_cross"), line = cross.querySelector("line");
+  const tip = box.querySelector("#tv_tip");
+  hit.addEventListener("mousemove", ev=>{
+    const r = svg.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) * (W / r.width);
+    const frac = Math.min(1, Math.max(0, (sx - m.l)/iw));
+    const k = Math.round(frac * (n-1));
+    const px = X(k);
+    line.setAttribute("x1", px); line.setAttribute("x2", px);
+    cross.style.display = "";
+    const total = pts[k].p.reduce((a,b)=>a+b,0) || 1;
+    const rows = series.map((p,i)=>({ p, v: pts[k].p[i]/total }))
+      .sort((a,b)=>b.v-a.v)
+      .map(x=>`<div><i style="background:${x.p.color}"></i>${esc(x.p.name)}
+        <b>${Math.round(x.v*100)}%</b></div>`).join("");
+    tip.innerHTML = `<div class="tt">${elapsedLabel(pts[k].t - t0)} in</div>${rows}`;
+    tip.hidden = false;
+    tip.style.left = Math.min(box.clientWidth-170, Math.max(0, px*(box.clientWidth/W) + 12)) + "px";
+  });
+  hit.addEventListener("mouseleave", ()=>{ cross.style.display="none"; tip.hidden = true; });
+}
+
+let tvResize = null;
+window.addEventListener("resize", ()=>{
+  if (!isTV() || !S) return;
+  clearTimeout(tvResize);
+  tvResize = setTimeout(()=>renderTV(), 200);
+});
+
 /* ---------------- boot ---------------- */
 if (parseHashSession()) toast("Signed in as " + (session.user.name || "you"));
-renderHome();
+if (isTV()) renderTVBoot(); else renderHome();
 
 </script>
 </body>
