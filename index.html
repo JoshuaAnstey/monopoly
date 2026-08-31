@@ -40,6 +40,13 @@
   .hdr .title{font-size:19px; font-weight:800; letter-spacing:.2px; flex:1; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .hdr .title small{display:block; font-size:11.5px; font-weight:600; color:var(--ink3); letter-spacing:.4px}
+  /* Game Night is a 16:9 TV layout — no point offering it on a phone. */
+  .tvbtn{display:none}
+  @media (min-width:700px){
+    .tvbtn{display:inline-block; flex:none; background:var(--sky-tint); border:1px solid var(--sky);
+      color:var(--sky-ink); border-radius:11px; padding:9px 14px; font-size:13px; font-weight:800}
+    .tvbtn:active{background:var(--sky); color:#fff}
+  }
   .iconbtn{width:42px; height:42px; border-radius:12px; background:var(--card); border:1px solid var(--line-soft);
     box-shadow:var(--shadow);
     display:flex; align-items:center; justify-content:center; font-size:18px; flex:none}
@@ -364,13 +371,12 @@
   .bbar{position:fixed; bottom:0; left:0; right:0; display:flex; gap:10px; justify-content:center;
     padding:10px 14px calc(10px + var(--sab)); background:linear-gradient(rgba(245,247,251,0), var(--bg) 40%)}
   .bbar .bb{flex:1; max-width:180px; background:var(--card); border:1px solid var(--line-soft); border-radius:14px;
-    padding:12px 8px; font-size:13px; font-weight:800; text-align:center; box-shadow:var(--shadow)}
+    padding:15px 8px; font-size:13.5px; font-weight:800; text-align:center; box-shadow:var(--shadow)}
   .bbar .bb:active{background:var(--card2)}
   .bbar .bb.undo{background:var(--indigo-tint); border-color:var(--indigo); color:var(--indigo-ink)}
   .bbar .bb.pause{background:var(--brand-tint); border-color:var(--brand); color:var(--brand-ink)}
   .bbar .bb.pause.on{background:var(--brand-btn); border-color:var(--brand-btn); color:#fff}
   .bbar .bb[disabled]{opacity:.4}
-  .bbar .bb .ic{font-size:17px; display:block; margin-bottom:2px}
 
   /* ---------- overlays ---------- */
   .ovwrap{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center}
@@ -463,7 +469,7 @@
 /* ================= CONFIG =================
    Paste your Supabase project's URL and anon (public) key here before
    uploading to your Storage bucket — or leave blank and enter them in
-   the app under Menu → Supabase settings. */
+   the app from the home screen → Supabase settings. */
 const SUPABASE_URL = "https://ttvzeomkdxibucrhjwpm.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_3OVK1xjBaQfkPCG4fHBuTA_92MxMq1m";
 /* ========================================== */
@@ -784,8 +790,13 @@ function logLine(text){
   S.log.unshift({ t: Date.now(), x: text });
   if (S.log.length>400) S.log.length = 400;
 }
-function mutate(fn, logText){
-  if (S && S.paused){ toast("Game is paused — hit Resume"); return; }
+/* opts.whilePaused marks an action that touches no money and no property, so
+   the pause lock (which exists to stop accidental transactions) shouldn't
+   swallow it — renaming the game is the case that bit us. */
+function mutate(fn, logText, opts){
+  if (S && S.paused && !(opts && opts.whilePaused)){
+    toast("Game is paused — hit Resume"); return;
+  }
   pushSnapshot();
   fn();
   if (logText) logLine(logText);
@@ -1574,6 +1585,7 @@ function renderGame(){
       <div class="title">${esc(S.name)}
         <small><span id="savest" class="savedot"><i></i>…</span></small>
       </div>
+      <button class="tvbtn" id="g_tv">Game Night</button>
       <button class="iconbtn" id="g_undo" aria-label="Undo">↩︎</button>
     </div>
     <div class="scroller ${S.paused ? "paused" : ""}">
@@ -1621,11 +1633,11 @@ function renderGame(){
       <div style="height:12px"></div>
     </div>
     <div class="bbar">
-      <button class="bb undo" id="g_undo2" ${S.paused?"disabled":""}><span class="ic">↩️</span>Undo</button>
-      <button class="bb pause ${S.paused?"on":""}" id="g_pause"><span class="ic">${S.paused?"▶️":"⏸"}</span>${S.paused?"Resume":"Pause"}</button>
-      <button class="bb" id="g_props"><span class="ic">🏘</span>Properties</button>
-      <button class="bb" id="g_log"><span class="ic">📜</span>Log</button>
-      <button class="bb" id="g_menu"><span class="ic">⋯</span>More</button>
+      <button class="bb undo" id="g_undo2" ${S.paused?"disabled":""}>Undo</button>
+      <button class="bb pause ${S.paused?"on":""}" id="g_pause">${S.paused?"Resume":"Pause"}</button>
+      <button class="bb" id="g_props">Properties</button>
+      <button class="bb" id="g_log">Log</button>
+      <button class="bb" id="g_menu">More</button>
     </div>
   `);
   if (canSave()) setSaveStatus(saveBusy||saveTimer? "busy":"ok", saveBusy||saveTimer? "Saving…":"Saved");
@@ -1636,6 +1648,7 @@ function renderGame(){
   });
   $("#g_undo").addEventListener("click", undo);
   $("#g_undo2").addEventListener("click", undo);
+  $("#g_tv").addEventListener("click", openGameNight);
   $("#g_pause").addEventListener("click", togglePause);
   if (S.paused){
     $("#g_resume").addEventListener("click", togglePause);
@@ -2034,33 +2047,37 @@ function openLog(){
     </div>
   `);
 }
+/* The Game Night dashboard is a 16:9 TV layout, so its launcher only appears on
+   screens wide enough to be casting from. It reads the SAVED game, hence the
+   save-first dance. */
+function openGameNight(){
+  if (!canSave()) return toast("Sign in first — the TV view reads the saved game");
+  const go = ()=> window.open(location.pathname+"?tv="+gameId, "_blank");
+  if (!gameId){
+    toast("Saving first\u2026"); clearTimeout(saveTimer); saveTimer=null;
+    saveNow().then(()=>{ if (gameId) go(); });
+    return;
+  }
+  go();
+}
 function openMenu(){
   openPanel(`
     <h2>More</h2>
     <div class="pscroll">
-      <button class="act green" id="m_tv"><span class="ic">📺</span>Open Game Night view
-        <span class="sub2">full-screen dashboard to cast to the TV</span></button>
       <button class="act" id="m_save"><span class="ic">💾</span>Save now</button>
       <button class="act" id="m_rename"><span class="ic">✏️</span>Rename game</button>
-      <button class="act" id="m_addpl"><span class="ic">🙋</span>Add a player</button>
-      <button class="act" id="m_sb"><span class="ic">⚙️</span>Supabase settings</button>
-      <button class="act red" id="m_finish"><span class="ic">🏁</span>${S.finished? "Reopen game":"Finish game"}</button>
+      <button class="act" id="m_addpl" ${S.paused?"disabled":""}><span class="ic">🙋</span>Add a player${
+        S.paused? `<span class="sub2">paused — hit Resume first</span>`:""}</button>
+      <button class="act red" id="m_finish" ${S.paused?"disabled":""}><span class="ic">🏁</span>${
+        S.finished? "Reopen game":"Finish game"}${S.paused? `<span class="sub2">paused — hit Resume first</span>`:""}</button>
     </div>
   `, w=>{
-    w.querySelector("#m_tv").addEventListener("click", ()=>{ closePanel(w);
-      if (!canSave()) return toast("Sign in first — the TV view reads the saved game");
-      if (!gameId){ toast("Saving first…"); clearTimeout(saveTimer); saveTimer=null;
-        saveNow().then(()=>{ if (gameId) window.open(location.pathname+"?tv="+gameId, "_blank"); });
-        return; }
-      window.open(location.pathname+"?tv="+gameId, "_blank");
-    });
     w.querySelector("#m_save").addEventListener("click", ()=>{ closePanel(w);
       if (!hasCreds()) return openSettings();
       if (!session) return toast("Sign in on the home screen to save");
       clearTimeout(saveTimer); saveTimer=null; saveNow(); toast("Saving…"); });
     w.querySelector("#m_rename").addEventListener("click", ()=>{ closePanel(w); openRename(); });
     w.querySelector("#m_addpl").addEventListener("click", ()=>{ closePanel(w); openAddPlayer(); });
-    w.querySelector("#m_sb").addEventListener("click", ()=>{ closePanel(w); openSettings(); });
     w.querySelector("#m_finish").addEventListener("click", ()=>{ closePanel(w);
       mutate(()=>{ S.finished = !S.finished; S.endedAt = S.finished ? Date.now() : null; },
         S.finished? "Game reopened":"Game marked finished"); });
@@ -2075,7 +2092,7 @@ function openRename(){
     w.querySelector("#rn_ok").addEventListener("click", ()=>{
       const v = w.querySelector("#rn_v").value.trim();
       closePanel(w);
-      if (v) mutate(()=>{ S.name = v; }, "Game renamed to “"+v+"”");
+      if (v) mutate(()=>{ S.name = v; }, "Game renamed to “"+v+"”", {whilePaused:true});
     });
   });
 }
