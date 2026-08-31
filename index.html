@@ -148,6 +148,10 @@
   .tvhdr{grid-area:hdr; display:flex; align-items:baseline; gap:1.6vw; padding:0 .3vw .4vh}
   .tvtitle{font-size:2.5vh; font-weight:900; letter-spacing:.3px; display:flex; align-items:baseline; gap:.8vw}
   .tvtitle small{font-size:1.7vh; font-weight:700; color:var(--ink2)}
+  .tvexit{align-self:center; flex:none; background:var(--card);
+    border:1px solid var(--line); color:var(--ink2); border-radius:1vh;
+    padding:.9vh 1.2vw; font-size:1.5vh; font-weight:800}
+  .tvexit:active{background:var(--card2)}
   .tvmeta{margin-left:auto; display:flex; gap:1.5vw; font-size:1.6vh; color:var(--ink2)}
   .tvmeta b{color:var(--ink); font-weight:800}
   .tvlive{display:inline-flex; align-items:center; gap:.5vw; color:var(--sky-ink); font-weight:800}
@@ -212,15 +216,13 @@
   .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
   .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
   .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.35vh}
-  .fackey{padding:0 0 .7vh; flex:none}
-  .fackey .kt{font-size:1.25vh; font-weight:600; color:var(--ink3); line-height:1.35; margin-bottom:.45vh}
-  .fackey .kcols{display:flex; gap:.4vw}
-  .fackey .kcols span{flex:1; min-width:0; font-size:1.2vh; font-weight:800; color:var(--ink2);
-    text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .fackey .kcols i{font-style:normal; font-weight:700; color:var(--ink3)}
+  .facnote{padding:0 0 .8vh; flex:none; font-size:1.25vh; font-weight:600;
+    color:var(--ink3); line-height:1.4}
   .fcell{flex:1; min-width:0}
   .fcell .fnum{display:block; font-style:normal; font-size:1.15vh; font-weight:800;
-    color:var(--ink3); line-height:1; margin-bottom:.25vh; font-variant-numeric:tabular-nums}
+    color:var(--ink); line-height:1; margin-bottom:.25vh; font-variant-numeric:tabular-nums;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .fcell .fnum b{font-weight:600; color:var(--ink3)}
   .fbar{display:block; height:.6vh; border-radius:.3vh; background:var(--line); overflow:hidden}
   .fbar i{display:block; height:100%; opacity:.85}
 
@@ -800,8 +802,14 @@ function pushSnapshot(){
   snapshots.push(JSON.stringify(S));
   if (snapshots.length>60) snapshots.shift();
 }
+/* House style for the log: every entry is a sentence, so it starts with a
+   capital — "The Bank paid…", not "the Bank paid…". Doing it here means every
+   entry obeys it, including ones added later, and callers can write naturally.
+   Player names are never re-cased beyond that first letter: they are the
+   banker's to spell. No trailing full stops — these are entries, not prose. */
 function logLine(text){
-  S.log.unshift({ t: Date.now(), x: text });
+  const line = String(text).charAt(0).toUpperCase() + String(text).slice(1);
+  S.log.unshift({ t: Date.now(), x: line });
   if (S.log.length>400) S.log.length = 400;
 }
 /* opts.whilePaused marks an action that touches no money and no property, so
@@ -857,7 +865,7 @@ function togglePause(){
     S.turn = null;
     S.players.forEach(pl=>{ pl.pos = null; pl.inJail = false; });
   }
-  logLine(S.paused ? "⏸ Game paused" : "▶️ Game resumed");
+  logLine(S.paused ? "Game paused" : "Game resumed");
   renderGame();
   scheduleSave();
   toast(S.paused ? "Paused — the cards are locked" : "Resumed");
@@ -1792,7 +1800,7 @@ function openPayBank(plId){
       if (b.dataset.t==="custom"){
         askAmount({title:pl.name+" pays the "+(fp?"pot":"Bank")}, v=>transfer(plId, dest, v, "", "tax"));
       } else {
-        transfer(plId, dest, +b.dataset.t, "tax/fee", "tax");
+        transfer(plId, dest, +b.dataset.t, "tax or fee", "tax");
       }
     });
   });
@@ -1848,12 +1856,12 @@ function openPayRent(plId){
         const both = GROUP_MEMBERS.util.every(id=>S.props[id]&&S.props[id].owner===st.owner);
         askDiceTotal({property:p.name, multiplier:both?10:4, payer:pl.name, owner:ow.name}, roll=>{
           const amt = rentFor(p.id, roll);
-          transfer(plId, ow.id, amt, "rent — "+p.name+" (rolled "+roll+", \u00d7"+(both?10:4)+")", "rent");
+          transfer(plId, ow.id, amt, "rent on "+p.name+" (rolled "+roll+", \u00d7"+(both?10:4)+")", "rent");
           toast(fmt(amt)+" to "+ow.name);
         });
       } else {
         askAmount({title:"Rent — "+p.name, sub:pl.name+" → "+ow.name, initial:rentFor(p.id), confirmLabel:"Pay rent"}, v=>{
-          transfer(plId, ow.id, v, "rent — "+p.name, "rent");
+          transfer(plId, ow.id, v, "rent on "+p.name, "rent");
           toast(fmt(v)+" to "+ow.name);
         });
       }
@@ -2071,8 +2079,9 @@ function openBankruptcy(plId){
         }
         pl.bankrupt = true;
         const alive = S.players.filter(x=>!x.bankrupt);
-        if (alive.length===1){ S.finished = true; S.endedAt = Date.now(); logLine("🏆 "+alive[0].name+" wins the game!"); }
-      }, "💀 "+pl.name+" went bankrupt to "+nameOf(credId));
+        if (alive.length===1){ S.finished = true; S.endedAt = Date.now(); logLine(alive[0].name+" wins the game"); }
+      }, pl.name+" went bankrupt"+(credId==="BANK"? " — everything back to the Bank"
+                                                  : " — everything to "+nameOf(credId)));
       const alive = S.players.filter(x=>!x.bankrupt);
       if (alive.length===1) toast("🏆 "+alive[0].name+" wins!");
     });
@@ -2258,6 +2267,7 @@ function renderTV(){
           ${S.settings.freeParking ? `<span>🅿️ <b>${fmt(S.freeParking)}</b></span>` : ""}
           <span id="tv_live" class="tvlive"><i></i>live</span>
         </div>
+        <button class="tvexit" id="tv_exit">Exit Game View</button>
       </header>
 
       <section class="tvplayers">
@@ -2269,16 +2279,9 @@ function renderTV(){
         <h3>Win probability
           <small>${S.finished ? "final" : (pred.decisive < .3 ? "early — anyone's game"
             : pred.decisive < .65 ? "taking shape" : "late game")}</small></h3>
-        <div class="fackey">
-          <div class="kt">Big bar = chance of winning · small bars = what's driving it,
-            each player's share of the table</div>
-          <div class="kcols">
-            <span>Net worth <i>35%</i></span>
-            <span>Monopolies <i>30%</i></span>
-            <span>Building <i>20%</i></span>
-            <span>Cash <i>15%</i></span>
-          </div>
-        </div>
+        <div class="facnote">Each player's odds come from their share of the table's
+          net worth (weighted 35%), monopolies (30%), houses and hotels (20%) and cash (15%).
+          The odds start near even and sharpen as monopolies and buildings appear.</div>
         <div class="predlist">
           ${order.filter(p=>!p.bankrupt).map(p=>tvPredRow(p, pred)).join("")}
           ${S.players.filter(p=>p.bankrupt).map(p=>`
@@ -2310,6 +2313,8 @@ function renderTV(){
       </section>
     </div>
   `);
+  const ex = document.getElementById("tv_exit");
+  if (ex) ex.addEventListener("click", ()=>{ location.href = location.pathname; });
   drawProbChart(pred);
 }
 
@@ -2365,7 +2370,7 @@ function tvPredRow(p, pred){
   const bar = (k,label) => {
     const fp = Math.round((f[k]||0)*100);
     return `<span class="fcell" title="${label} — ${fp}% of the table">
-      <i class="fnum">${fp}%</i>
+      <i class="fnum"><b>${label}</b> ${fp}%</i>
       <span class="fbar"><i style="width:${fp}%; background:${p.color}"></i></span></span>`;
   };
   return `
@@ -2377,7 +2382,7 @@ function tvPredRow(p, pred){
       <span class="pbar"><i style="width:${Math.max(1,pct)}%; background:${p.color}"></i></span>
       <span class="factors">
         ${bar("netWorth","Net worth")}${bar("monopolies","Monopolies")}
-        ${bar("development","Development")}${bar("cash","Cash cushion")}
+        ${bar("development","Building")}${bar("cash","Cash")}
       </span>
     </div>`;
 }
