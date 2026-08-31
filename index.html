@@ -40,13 +40,16 @@
   .hdr .title{font-size:19px; font-weight:800; letter-spacing:.2px; flex:1; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .hdr .title small{display:block; font-size:11.5px; font-weight:600; color:var(--ink3); letter-spacing:.4px}
-  /* Game Night is a 16:9 TV layout — no point offering it on a phone. */
+  .hbtn{flex:none; border-radius:11px; padding:9px 13px; font-size:13px; font-weight:800;
+    background:var(--card); border:1px solid var(--line); color:var(--ink2)}
+  .hbtn:active{background:var(--card2)}
+  .hbtn.pause{background:var(--brand-tint); border-color:var(--brand); color:var(--brand-ink)}
+  .hbtn.pause.on{background:var(--brand-btn); border-color:var(--brand-btn); color:#fff}
+  .hbtn.tvbtn{background:var(--sky-tint); border-color:var(--sky); color:var(--sky-ink)}
+  .hbtn.tvbtn:active{background:var(--sky); color:#fff}
+  /* Game View is a 16:9 TV layout — no point offering it on a phone. Pause stays. */
   .tvbtn{display:none}
-  @media (min-width:700px){
-    .tvbtn{display:inline-block; flex:none; background:var(--sky-tint); border:1px solid var(--sky);
-      color:var(--sky-ink); border-radius:11px; padding:9px 14px; font-size:13px; font-weight:800}
-    .tvbtn:active{background:var(--sky); color:#fff}
-  }
+  @media (min-width:700px){ .tvbtn{display:inline-block} }
   .iconbtn{width:42px; height:42px; border-radius:12px; background:var(--card); border:1px solid var(--line-soft);
     box-shadow:var(--shadow);
     display:flex; align-items:center; justify-content:center; font-size:18px; flex:none}
@@ -129,7 +132,7 @@
   .lbbar{display:block; height:4px; border-radius:2px; background:var(--line); margin-top:5px; overflow:hidden}
   .lbbar i{display:block; height:100%; background:var(--sky-btn)}
 
-  /* ================= Game Night (TV dashboard) ================= */
+  /* ================= Game View (TV dashboard) ================= */
   body.tvmode{overflow:hidden}
   body.tvmode #app{max-width:none}
   .tvsignin{height:100vh; display:flex; flex-direction:column; align-items:center;
@@ -811,12 +814,12 @@ function mutate(fn, logText, opts){
   pushSnapshot();
   fn();
   if (logText) logLine(logText);
-  sampleProbabilities();   // keeps the Game Night timeline dense
+  sampleProbabilities();   // keeps the Game View timeline dense
   renderGame();
   scheduleSave();
 }
 /* Win-probability timeline. Stored as {t, p:[…]} aligned to S.players order so
-   the Game Night view can draw the whole arc of the game. */
+   the Game View dashboard can draw the whole arc of the game. */
 function sampleProbabilities(){
   if (!S) return;
   if (!Array.isArray(S.probTimeline)) S.probTimeline = [];
@@ -1351,7 +1354,7 @@ async function renderHome(){
           <div class="gn">${esc(r.name)}${st.finished? `<span class="tag gold">finished</span>`:""}</div>
           <div class="gm">${pls.map(p=>esc(p.name)).join(" · ")||"—"} &nbsp;·&nbsp; ${alive} active &nbsp;·&nbsp; ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})}</div>
         </div>
-        <button class="del" data-tv="${r.id}" aria-label="Open Game Night view" title="Game Night view">📺</button>
+        <button class="del" data-tv="${r.id}" aria-label="Open Game View" title="Game View">📺</button>
         <button class="del" data-del="${r.id}" aria-label="Delete">🗑</button>
       </div>`;
     }).join("");
@@ -1626,7 +1629,8 @@ function renderGame(){
       <div class="title">${esc(S.name)}
         <small><span id="savest" class="savedot"><i></i>…</span></small>
       </div>
-      <button class="tvbtn" id="g_tv">Game Night</button>
+      <button class="hbtn pause ${S.paused?"on":""}" id="g_pause">${S.paused?"Resume":"Pause"}</button>
+      <button class="hbtn tvbtn" id="g_tv">Game View</button>
       <button class="iconbtn" id="g_undo" aria-label="Undo">↩︎</button>
     </div>
     <div class="scroller ${S.paused ? "paused" : ""}">
@@ -1675,7 +1679,6 @@ function renderGame(){
     </div>
     <div class="bbar">
       <button class="bb undo" id="g_undo2" ${S.paused?"disabled":""}>Undo</button>
-      <button class="bb pause ${S.paused?"on":""}" id="g_pause">${S.paused?"Resume":"Pause"}</button>
       <button class="bb" id="g_props">Properties</button>
       <button class="bb" id="g_log">Log</button>
       <button class="bb" id="g_menu">More</button>
@@ -2088,7 +2091,7 @@ function openLog(){
     </div>
   `);
 }
-/* The Game Night dashboard is a 16:9 TV layout, so its launcher only appears on
+/* The Game View dashboard is a 16:9 TV layout, so its launcher only appears on
    screens wide enough to be casting from. It reads the SAVED game, hence the
    save-first dance. */
 function openGameNight(){
@@ -2204,11 +2207,11 @@ async function renderTVBoot(){
   document.body.classList.add("tvmode");
   if (!hasCreds() || !session){
     setApp(`<div class="tvsignin"><div class="logo">🎩</div>
-      <h1>Game Night</h1>
+      <h1>Game View</h1>
       <p>Sign in on this browser first, then reopen this screen.</p></div>`);
     return;
   }
-  setApp(`<div class="tvsignin"><div class="logo">🎩</div><h1>Game Night</h1><p>Loading the game…</p></div>`);
+  setApp(`<div class="tvsignin"><div class="logo">🎩</div><h1>Game View</h1><p>Loading the game…</p></div>`);
   await tvRefresh();
   clearInterval(tvTimer);
   tvTimer = setInterval(()=>{ if (!document.hidden) tvRefresh(); }, 4000);
@@ -2247,7 +2250,7 @@ function renderTV(){
   setApp(`
     <div class="tv">
       <header class="tvhdr">
-        <div class="tvtitle">Game Night<small>${esc(S.name)}</small></div>
+        <div class="tvtitle">Game View<small>${esc(S.name)}</small></div>
         <div class="tvmeta">
           <span><b>${elapsedLabel(Date.now() - S.createdAt)}</b> elapsed</span>
           <span><b>${alive.length}</b> still in</span>
