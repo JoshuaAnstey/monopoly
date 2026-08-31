@@ -216,8 +216,10 @@
   .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
   .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
   .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.35vh}
-  .facnote{padding:0 0 .8vh; flex:none; font-size:1.25vh; font-weight:600;
-    color:var(--ink3); line-height:1.4}
+  /* Reference text, not scoreboard: read once or twice a game, so it steps
+     back out of the way of the numbers. */
+  .facnote{padding:0 0 .8vh; flex:none; font-size:1.1vh; font-weight:400;
+    color:var(--ink3); line-height:1.45}
   .fcell{flex:1; min-width:0}
   .fcell .fnum{display:block; font-style:normal; font-size:1.15vh; font-weight:800;
     color:var(--ink); line-height:1; margin-bottom:.25vh; font-variant-numeric:tabular-nums;
