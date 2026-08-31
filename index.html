@@ -306,6 +306,43 @@
     padding:11px 18px; font-size:13.5px; font-weight:900}
   .pausebn .pgo:active{filter:brightness(.92)}
   .paused .pgrid, .paused .bankbar{opacity:.45; pointer-events:none; filter:saturate(.4)}
+  .tdsheet{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 13px 12px; margin:0 0 12px; box-shadow:var(--shadow)}
+  .tdh{font-size:15px; font-weight:900; margin-bottom:12px}
+  .tdh small{display:block; font-size:11.5px; font-weight:600; color:var(--ink3); margin-top:2px}
+  .tdsec{margin-bottom:14px}
+  .tdlab{font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase;
+    color:var(--ink3); margin-bottom:7px}
+  .tdwarn{text-transform:none; letter-spacing:0; color:var(--brand-ink); font-weight:800}
+  .tdchips{display:flex; flex-wrap:wrap; gap:7px}
+  .tdchip{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:11px;
+    background:var(--card); border:1px solid var(--line); font-size:13px; font-weight:800; color:var(--ink2)}
+  .tdchip.on{font-weight:900}
+  .tdpos{display:flex; align-items:center; gap:9px; width:100%; text-align:left; padding:10px 11px;
+    border-radius:11px; background:var(--bg); border:1px solid var(--line-soft); margin-bottom:6px}
+  .tdpos:active{background:var(--card2)}
+  .tdpos .tdn{font-weight:800; font-size:13.5px; flex:none}
+  .tdpos .tdv{flex:1; text-align:right; font-weight:800; font-size:13px; color:var(--ink)}
+  .tdpos .tdv.unset{color:var(--brand-ink)}
+  .tdpos .tdedit{flex:none; font-size:11px; font-weight:800; color:var(--sky-ink)}
+  .tdrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+    font-size:13px; color:var(--ink2); padding:5px 0; border-bottom:1px solid var(--line-soft)}
+  .tdrow:last-child{border-bottom:0}
+  .tdrow b{color:var(--ink); font-weight:800}
+  .tdplayer{border-top:1px solid var(--line-soft); padding:11px 0 2px}
+  .tdplayer.out{opacity:.5}
+  .tdph{display:flex; align-items:center; gap:8px}
+  .tdph .tdn{flex:1; min-width:0; font-weight:800; font-size:14px}
+  .tdph .tdcash{font-weight:900; font-size:16px; font-variant-numeric:tabular-nums}
+  .tdmeta{font-size:12px; color:var(--ink2); margin:3px 0 0 28px}
+  .tdmeta b{color:var(--ink); font-weight:800}
+  .tdprops{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 4px 28px}
+  .tdchipp{font-size:11px; font-weight:800; padding:3px 7px; border-radius:6px;
+    border:1px solid rgba(31,35,56,.2)}
+  .tdchipp.mort{opacity:.5}
+  .tdnone{font-size:11.5px; color:var(--ink3); margin:5px 0 4px 28px}
+  .tdfoot{font-size:11px; color:var(--ink3); border-top:1px solid var(--line-soft);
+    padding-top:8px; margin-top:10px}
   .pcard.bankrupt{opacity:.45}
   .pcard.bankrupt .pb{text-decoration:line-through}
   .qa{display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px}
@@ -473,6 +510,37 @@ const BOARD = [
   {id:"wat",  name:"Water Works",            group:"util", price:150},
 ];
 const PROP = Object.fromEntries(BOARD.map(p=>[p.id,p]));
+/* BOARD is grouped by colour set; SPACES is the same board in walking order,
+   including the squares nobody can own. Index 0-39 == the printed board.
+   "jail" is its own entry because in-jail and just-visiting restore differently. */
+const SPACES = [
+  {i:0,  n:"GO"},                      {i:1,  p:"med"},
+  {i:2,  n:"Community Chest"},         {i:3,  p:"bal"},
+  {i:4,  n:"Income Tax"},              {i:5,  p:"rr1"},
+  {i:6,  p:"ori"},                     {i:7,  n:"Chance"},
+  {i:8,  p:"ver"},                     {i:9,  p:"con"},
+  {i:10, n:"Jail \u2014 just visiting"}, {i:11, p:"stc"},
+  {i:12, p:"ele"},                     {i:13, p:"sta"},
+  {i:14, p:"vir"},                     {i:15, p:"rr2"},
+  {i:16, p:"stj"},                     {i:17, n:"Community Chest"},
+  {i:18, p:"ten"},                     {i:19, p:"nyv"},
+  {i:20, n:"Free Parking"},            {i:21, p:"ken"},
+  {i:22, n:"Chance"},                  {i:23, p:"ind"},
+  {i:24, p:"ill"},                     {i:25, p:"rr3"},
+  {i:26, p:"atl"},                     {i:27, p:"ven"},
+  {i:28, p:"wat"},                     {i:29, p:"mar"},
+  {i:30, n:"Go To Jail"},              {i:31, p:"pac"},
+  {i:32, p:"ncr"},                     {i:33, n:"Community Chest"},
+  {i:34, p:"pen"},                     {i:35, p:"rr4"},
+  {i:36, n:"Chance"},                  {i:37, p:"prk"},
+  {i:38, n:"Luxury Tax"},              {i:39, p:"bdw"},
+];
+const spaceName = i => { const sp = SPACES[i]; return sp ? (sp.p ? PROP[sp.p].name : sp.n) : "?"; };
+/* Where a player is, in words. null until the banker sets it at pause time. */
+function posLabel(pl){
+  if (pl.inJail) return "In Jail";
+  return (pl.pos === null || pl.pos === undefined) ? "Not set" : spaceName(pl.pos);
+}
 const GROUP_MEMBERS = {};
 BOARD.forEach(p=>{ (GROUP_MEMBERS[p.group] = GROUP_MEMBERS[p.group]||[]).push(p.id); });
 /* Monopoly-style playing pieces. Each is a 24x24 silhouette drawn in the player's colour. */
@@ -544,12 +612,12 @@ function newGameState(name, players, opts){
     settings: { startingCash: opts.startingCash, goAmount: opts.goAmount, freeParking: opts.freeParking },
     players: players.map((p,i)=>({ id:"p"+(i+1)+"_"+Math.random().toString(36).slice(2,7),
       name:p.name, color:p.color, token:p.token || TOKENS[i%TOKENS.length].id,
-      balance:opts.startingCash, bankrupt:false, stats:newStats() })),
+      balance:opts.startingCash, bankrupt:false, pos:null, inJail:false, stats:newStats() })),
     props: {},           // propId -> {owner, mortgaged, houses}
     freeParking: 0,
     log: [],
     finished: false,
-    paused: false, pausedAt: null,
+    paused: false, pausedAt: null, turn: null,
   };
 }
 /* Older saved games predate the stats tallies — backfill on load. */
@@ -562,6 +630,11 @@ function migrateState(st){
   });
   if (st.endedAt === undefined) st.endedAt = null;
   if (st.paused === undefined){ st.paused = false; st.pausedAt = null; }
+  if (st.turn === undefined) st.turn = null;
+  st.players.forEach(p=>{
+    if (p.pos === undefined) p.pos = null;      // games from before positions were tracked
+    if (p.inJail === undefined) p.inJail = false;
+  });
   st.v = 2;
   return st;
 }
@@ -748,15 +821,124 @@ function togglePause(){
   if (!S) return;
   S.paused = !S.paused;
   S.pausedAt = S.paused ? Date.now() : null;
+  // Turn and position belong to the break, not the game. Once play resumes they
+  // go stale on the first roll, so they are cleared rather than left to mislead
+  // at the next pause.
+  if (!S.paused){
+    S.turn = null;
+    S.players.forEach(pl=>{ pl.pos = null; pl.inJail = false; });
+  }
   logLine(S.paused ? "⏸ Game paused" : "▶️ Game resumed");
   renderGame();
   scheduleSave();
   toast(S.paused ? "Paused — the cards are locked" : "Resumed");
 }
+/* Turn and position are recorded WHILE paused, so they can't go through
+   mutate() (which refuses) and don't belong on the undo stack — undoing a
+   typo'd board position should never rewind a rent payment. */
+function pausedEdit(fn){
+  if (!S || !S.paused) return;
+  fn();
+  renderGame();
+  scheduleSave();
+}
+function setTurn(plId){
+  pausedEdit(()=>{ S.turn = (S.turn === plId) ? null : plId; });
+}
+function openSpacePicker(plId){
+  const pl = player(plId);
+  openPanel(`
+    <h2>Where is ${esc(pl.name)}?</h2>
+    <div class="note">Tap the square the piece is sitting on.</div>
+    <div class="pscroll">
+      <button class="prop" data-sp="jail">
+        <div class="bar" style="background:var(--brand)"></div>
+        <div class="pinfo"><div class="pname">In Jail</div>
+          <div class="psub">not just visiting</div></div>
+        ${pl.inJail? `<div class="pright">\u2713</div>`:""}
+      </button>
+      ${SPACES.map(sp=>{
+        const pr = sp.p ? PROP[sp.p] : null;
+        const here = !pl.inJail && pl.pos === sp.i;
+        return `<button class="prop" data-sp="${sp.i}">
+          <div class="bar" style="background:${pr? GROUPS[pr.group].color : "var(--line)"}"></div>
+          <div class="pinfo"><div class="pname">${esc(pr? pr.name : sp.n)}</div>
+            <div class="psub">space ${sp.i}${pr && S.props[sp.p] ? " \u00b7 " + esc(nameOf(S.props[sp.p].owner)) : ""}</div></div>
+          ${here? `<div class="pright">\u2713</div>`:""}
+        </button>`;
+      }).join("")}
+    </div>
+  `, w=>{
+    w.addEventListener("click", e=>{
+      const b = e.target.closest("[data-sp]"); if (!b) return;
+      const v = b.dataset.sp;
+      pausedEdit(()=>{
+        if (v === "jail"){ pl.inJail = true; pl.pos = 10; }
+        else { pl.inJail = false; pl.pos = +v; }
+      });
+      closePanel(w);
+    });
+  });
+}
 function pausedLabel(){
   if (!S || !S.paused || !S.pausedAt) return "";
   const m = Math.round((Date.now() - S.pausedAt)/60000);
   return m < 1 ? "just now" : m === 1 ? "for 1 min" : "for " + m + " min";
+}
+/* Everything you need to put the board back exactly as it stands. */
+function teardownSheet(){
+  const hu = housesInUse();
+  const alive = S.players.filter(p=>!p.bankrupt);
+  const unset = alive.filter(p=>p.pos===null||p.pos===undefined).length;
+  return `
+  <div class="tdsheet">
+    <div class="tdh">\u{1f4cb} Teardown sheet<small>everything needed to set the board back up</small></div>
+
+    <div class="tdsec">
+      <div class="tdlab">Whose turn is next?${S.turn? "" : ` <span class="tdwarn">not set</span>`}</div>
+      <div class="tdchips">
+        ${alive.map(p=>`<button class="tdchip ${S.turn===p.id?"on":""}" data-turn="${p.id}"
+          style="${S.turn===p.id?`background:${p.color}; border-color:${p.color}; color:${inkOn(p.color)}`:""}">
+          ${tokenSVG(p.token, S.turn===p.id? inkOn(p.color) : p.color, 18)}${esc(p.name)}</button>`).join("")}
+      </div>
+    </div>
+
+    <div class="tdsec">
+      <div class="tdlab">Board positions${unset? ` <span class="tdwarn">${unset} not set</span>`:""}</div>
+      ${alive.map(p=>`
+        <button class="tdpos" data-pos="${p.id}">
+          ${tokenSVG(p.token, p.color, 20)}
+          <span class="tdn">${esc(p.name)}</span>
+          <span class="tdv ${(p.pos===null||p.pos===undefined)&&!p.inJail?"unset":""}">${esc(posLabel(p))}</span>
+          <span class="tdedit">change</span>
+        </button>`).join("")}
+    </div>
+
+    <div class="tdsec">
+      <div class="tdlab">The table</div>
+      <div class="tdrow"><span>Bank supply</span><b>${TOTAL_HOUSES-hu.houses} houses \u00b7 ${TOTAL_HOTELS-hu.hotels} hotels</b></div>
+      ${S.settings.freeParking? `<div class="tdrow"><span>Free Parking pot</span><b>${fmt(S.freeParking)}</b></div>`:""}
+      <div class="tdrow"><span>Placed on the board</span><b>${hu.houses} house${hu.houses===1?"":"s"} \u00b7 ${hu.hotels} hotel${hu.hotels===1?"":"s"}</b></div>
+    </div>
+
+    ${S.players.map(p=>{
+      const props = playerProps(p.id);
+      return `<div class="tdplayer ${p.bankrupt?"out":""}">
+        <div class="tdph">${tokenSVG(p.token, p.color, 20)}
+          <span class="tdn">${esc(p.name)}${p.bankrupt? ` <span class="tag red">bankrupt</span>`:""}${
+            S.turn===p.id? ` <span class="tag green">to play</span>`:""}</span>
+          <span class="tdcash">${fmtS(p.balance)}</span></div>
+        <div class="tdmeta">${p.bankrupt? "out of the game" : "on <b>"+esc(posLabel(p))+"</b>"}</div>
+        ${props.length? `<div class="tdprops">${props.map(pr=>{
+          const st = S.props[pr.id], c = GROUPS[pr.group].color;
+          const build = st.houses===5? " \u{1f3e8}" : st.houses>0? " "+st.houses+"\u{1f3e0}" : "";
+          return `<span class="tdchipp ${st.mortgaged?"mort":""}"
+            style="background:${c}; color:${inkOn(c)}">${esc(pr.name)}${build}${st.mortgaged?" \u2298":""}</span>`;
+        }).join("")}</div>` : `<div class="tdnone">no properties</div>`}
+      </div>`;
+    }).join("")}
+    <div class="tdfoot">\u2298 mortgaged \u00b7 \u{1f3e0} houses \u00b7 \u{1f3e8} hotel</div>
+  </div>`;
 }
 function nameOf(id){
   if (id==="BANK") return "the Bank";
@@ -1391,7 +1573,8 @@ function renderGame(){
         <span class="px"><span class="pt">Game paused</span>
           <span class="ps">Cards are locked \u2014 paused ${pausedLabel()}</span></span>
         <button class="pgo" id="g_resume">Resume</button>
-      </div>` : ""}
+      </div>
+      ${teardownSheet()}` : ""}
       <div class="bankbar">
         <button class="bankcard" id="g_bank">
           <div class="bl">🏦 Bank</div><div class="bv">∞ &nbsp;<span style="font-size:12px;color:var(--ink3)">🏠 ${TOTAL_HOUSES-hu.houses} · 🏨 ${TOTAL_HOTELS-hu.hotels}</span></div>
@@ -1445,7 +1628,13 @@ function renderGame(){
   $("#g_undo").addEventListener("click", undo);
   $("#g_undo2").addEventListener("click", undo);
   $("#g_pause").addEventListener("click", togglePause);
-  if (S.paused) $("#g_resume").addEventListener("click", togglePause);
+  if (S.paused){
+    $("#g_resume").addEventListener("click", togglePause);
+    document.querySelector(".tdsheet").addEventListener("click", e=>{
+      const t = e.target.closest("[data-turn]"); if (t) return setTurn(t.dataset.turn);
+      const p = e.target.closest("[data-pos]");  if (p) return openSpacePicker(p.dataset.pos);
+    });
+  }
   $("#g_bank").addEventListener("click", openBankSheet);
   if (S.settings.freeParking) $("#g_fp").addEventListener("click", openFreeParking);
   $("#g_props").addEventListener("click", ()=>openPropertyBrowser());
