@@ -109,7 +109,7 @@
   .colopt{width:34px; height:34px; border-radius:50%; border:3px solid transparent}
   .colopt.sel{border-color:var(--ink)}
   .phead svg.tok{margin-right:-2px}
-  .lbdot{display:flex; align-items:center; flex:none}
+  .lbdot{display:flex; align-items:center; justify-content:center; flex:none; width:24px; height:24px}
   .act .ic svg.tok{vertical-align:middle}
 
   /* roster chips on the setup screen */
@@ -124,7 +124,6 @@
     padding:12px 13px; margin-bottom:8px; box-shadow:var(--shadow)}
   .lbrow:active{background:var(--card2)}
   .lbrank{font-size:13px; font-weight:800; color:var(--ink3); width:16px; flex:none}
-  .lbdot{width:11px; height:11px; border-radius:50%; flex:none}
   .lbname{flex:1; min-width:0; font-weight:800; font-size:15px}
   .lbname small{display:block; font-size:11.5px; font-weight:600; color:var(--ink3); margin-top:3px}
   .lbwins{flex:none; text-align:right; font-weight:900; font-size:19px; min-width:74px}
@@ -261,8 +260,10 @@
   .tiles{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:4px 0 6px}
   @media (min-width:460px){ .tiles{grid-template-columns:1fr 1fr 1fr} }
   .tile{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 12px}
-  .tile .tv{font-size:19px; font-weight:900; font-variant-numeric:tabular-nums}
-  .tile .tl{font-size:11px; font-weight:700; color:var(--ink3); margin-top:2px}
+  /* NOT .tv / .tl — ".tv" is the full-screen dashboard (height:100vh; display:grid),
+     and an unscoped match turned every stat tile into a 100vh grid. */
+  .tile .tnum{font-size:19px; font-weight:900; font-variant-numeric:tabular-nums}
+  .tile .tcap{font-size:11px; font-weight:700; color:var(--ink3); margin-top:2px}
 
   /* ---------- setup ---------- */
   .field{margin-bottom:14px}
@@ -485,9 +486,9 @@
 <div id="toast" class="toast"></div>
 <script>
 /* ================= CONFIG =================
-   Paste your Supabase project's URL and anon (public) key here before
-   uploading to your Storage bucket — or leave blank and enter them in
-   the app from the home screen → Supabase settings. */
+   The Supabase project this app saves to. These are the publishable
+   (client-side) credentials; per-user Row Level Security is what actually
+   keeps one account's games out of another's. Change them here and redeploy. */
 const SUPABASE_URL = "https://ttvzeomkdxibucrhjwpm.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_3OVK1xjBaQfkPCG4fHBuTA_92MxMq1m";
 /* ========================================== */
@@ -1096,7 +1097,6 @@ function parseHashSession(){
   return true;
 }
 function signIn(){
-  if (!hasCreds()) return openSettings();
   const redirect = location.origin + location.pathname;
   location.href = sbUrl("/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(redirect));
 }
@@ -1153,7 +1153,7 @@ function setSaveStatus(cls, text){
 }
 function scheduleSave(){
   if (!S) return;
-  if (!canSave()){ setSaveStatus("", hasCreds()? "Not saving — sign in" : "Not saving — set up Supabase"); return; }
+  if (!canSave()){ setSaveStatus("", "Not saving — sign in"); return; }
   setSaveStatus("busy","Saving…");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 1200);
@@ -1329,22 +1329,13 @@ async function renderHome(){
         <div class="sect">Leaderboard</div>
         <div id="h_stats"></div>
       </div>
-      <div class="sect">Setup</div>
-      <button class="bigbtn ghost" id="h_settings">⚙️ &nbsp;Supabase settings</button>
       <div style="height:20px"></div>
     </div>
   `);
   $("#h_new").addEventListener("click", renderSetup);
-  $("#h_settings").addEventListener("click", openSettings);
   const si = $("#h_signin"); if (si) si.addEventListener("click", signIn);
   const so = $("#h_signout"); if (so) so.addEventListener("click", signOut);
   const list = $("#h_list");
-  if (!hasCreds()){
-    list.innerHTML = `<div class="note"><b>Supabase isn’t connected yet.</b><br>
-      Games can be played without saving, or tap <b>Supabase settings</b> below to plug in
-      your project URL and anon key so games save automatically.</div>`;
-    return;
-  }
   if (!session){
     list.innerHTML = `<div class="note"><b>Sign in to save games.</b><br>
       Your games are stored in your own account — sign in with Google above to save
@@ -1389,9 +1380,9 @@ async function renderHome(){
     loadLeaderboard();
   } catch(e){
     console.error(e);
-    list.innerHTML = `<div class="note"><b>Couldn’t reach Supabase.</b><br>${esc(e.message)}<br><br>
-      Check your URL/key in <button class="linkish" onclick="openSettings()">Supabase settings</button>,
-      and make sure you’ve run <b>schema.sql</b> in the SQL editor.</div>`;
+    list.innerHTML = `<div class="note"><b>Couldn’t reach the server.</b><br>${esc(e.message)}<br><br>
+      Your games are safe — try again in a moment. You can keep playing meanwhile;
+      this game just won’t autosave.</div>`;
   }
 }
 
@@ -1456,7 +1447,7 @@ function openPlayerStats(name){
     ];
     body.innerHTML = `
       <div class="tiles">${tiles.map(([l,v])=>
-        `<div class="tile"><div class="tv">${v}</div><div class="tl">${esc(l)}</div></div>`).join("")}</div>
+        `<div class="tile"><div class="tnum">${v}</div><div class="tcap">${esc(l)}</div></div>`).join("")}</div>
       <div class="grouphdr">Game history</div>
       ${rows.map(r=>{
         const d = new Date(r.updated_at);
@@ -1695,7 +1686,7 @@ function renderGame(){
     </div>
   `);
   if (canSave()) setSaveStatus(saveBusy||saveTimer? "busy":"ok", saveBusy||saveTimer? "Saving…":"Saved");
-  else setSaveStatus("", hasCreds()? "Not saving — sign in" : "Not saving — set up Supabase");
+  else setSaveStatus("", "Not saving — sign in");
   $("#g_home").addEventListener("click", ()=>{
     if (canSave()){ clearTimeout(saveTimer); saveTimer=null; saveNow(); }
     renderHome();
@@ -2128,7 +2119,6 @@ function openMenu(){
     </div>
   `, w=>{
     w.querySelector("#m_save").addEventListener("click", ()=>{ closePanel(w);
-      if (!hasCreds()) return openSettings();
       if (!session) return toast("Sign in on the home screen to save");
       clearTimeout(saveTimer); saveTimer=null; saveNow(); toast("Saving…"); });
     w.querySelector("#m_rename").addEventListener("click", ()=>{ closePanel(w); openRename(); });
@@ -2174,38 +2164,6 @@ function openAddPlayer(){
     });
   });
 }
-function openSettings(){
-  openPanel(`
-    <h2>⚙️ Supabase settings</h2>
-    <div class="sub">From your Supabase dashboard: Project Settings → API</div>
-    <div class="pscroll">
-      <div class="field"><label>Project URL</label>
-        <input type="text" id="sb_url" placeholder="https://xxxx.supabase.co" value="${esc(creds.url)}" autocapitalize="off" autocorrect="off"></div>
-      <div class="field"><label>Anon (public) key</label>
-        <input type="password" id="sb_key" placeholder="eyJhbGciOi…" value="${esc(creds.key)}"></div>
-      <button class="confirmbtn" id="sb_ok">Save &amp; test connection</button>
-      <div class="note" style="margin-top:12px">Run <b>schema.sql</b> once in your project’s SQL Editor to create the
-      <b>games</b> table. Games then autosave here after every transaction.</div>
-    </div>
-  `, w=>{
-    w.querySelector("#sb_ok").addEventListener("click", async ()=>{
-      creds = { url: w.querySelector("#sb_url").value.trim(), key: w.querySelector("#sb_key").value.trim() };
-      try { localStorage.setItem("mb_creds", JSON.stringify(creds)); } catch(e) {}
-      if (!hasCreds()){ closePanel(w); toast("Cleared — playing without saving"); if(!S) renderHome(); return; }
-      const btn = w.querySelector("#sb_ok"); btn.disabled = true; btn.textContent = "Testing…";
-      try {
-        await sb("/rest/v1/games?select=id&limit=1");
-        closePanel(w); toast("✅ Connected to Supabase");
-        if (S) scheduleSave(); else renderHome();
-      } catch(e){
-        btn.disabled = false; btn.textContent = "Save & test connection";
-        toast("❌ " + (e.message.includes("games")||e.message.includes("404")? "Connected, but run schema.sql first" : "Couldn’t connect — check URL/key"));
-      }
-    });
-  });
-}
-
-
 /* ================= GAME NIGHT (TV dashboard) =================
    Read-only. Opened as ?tv=<gameId>, polls the saved game every few
    seconds so it follows whatever the banker does on their phone. */
