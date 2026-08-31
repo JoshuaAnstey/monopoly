@@ -305,7 +305,7 @@
   .pausebn .pgo{flex:none; background:var(--brand-btn); color:#fff; border-radius:12px;
     padding:11px 18px; font-size:13.5px; font-weight:900}
   .pausebn .pgo:active{filter:brightness(.92)}
-  .paused .pgrid, .paused .bankbar{opacity:.45; pointer-events:none; filter:saturate(.4)}
+  .paused .pgrid, .paused .bankbar{display:none}
   .tdsheet{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     padding:14px 13px 12px; margin:0 0 12px; box-shadow:var(--shadow)}
   .tdh{font-size:15px; font-weight:900; margin-bottom:12px}
@@ -336,10 +336,14 @@
   .tdph .tdcash{font-weight:900; font-size:16px; font-variant-numeric:tabular-nums}
   .tdmeta{font-size:12px; color:var(--ink2); margin:3px 0 0 28px}
   .tdmeta b{color:var(--ink); font-weight:800}
-  .tdprops{display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 4px 28px}
-  .tdchipp{font-size:11px; font-weight:800; padding:3px 7px; border-radius:6px;
-    border:1px solid rgba(31,35,56,.2)}
-  .tdchipp.mort{opacity:.5}
+  .tdlist{margin:7px 0 4px 28px}
+  .tdli{display:flex; align-items:center; gap:9px; padding:6px 0;
+    border-bottom:1px solid var(--line-soft)}
+  .tdli:last-child{border-bottom:0}
+  .tdli .sw{width:12px; height:12px; border-radius:3px; flex:none;
+    border:1px solid rgba(31,35,56,.25)}
+  .tdli .nm{font-size:13px; font-weight:600; color:var(--ink2)}
+  .tdli .nm b{color:var(--ink); font-weight:800}
   .tdnone{font-size:11.5px; color:var(--ink3); margin:5px 0 4px 28px}
   .tdfoot{font-size:11px; color:var(--ink3); border-top:1px solid var(--line-soft);
     padding-top:8px; margin-top:10px}
@@ -883,7 +887,10 @@ function openSpacePicker(plId){
 function pausedLabel(){
   if (!S || !S.paused || !S.pausedAt) return "";
   const m = Math.round((Date.now() - S.pausedAt)/60000);
-  return m < 1 ? "just now" : m === 1 ? "for 1 min" : "for " + m + " min";
+  if (m < 1) return "just now";
+  if (m < 60) return "for " + m + " min";
+  const h = Math.floor(m/60), r = m % 60;
+  return "for " + h + (h===1? " hr" : " hrs") + (r? " " + r + " min" : "");
 }
 /* Everything you need to put the board back exactly as it stands. */
 function teardownSheet(){
@@ -929,15 +936,17 @@ function teardownSheet(){
             S.turn===p.id? ` <span class="tag green">to play</span>`:""}</span>
           <span class="tdcash">${fmtS(p.balance)}</span></div>
         <div class="tdmeta">${p.bankrupt? "out of the game" : "on <b>"+esc(posLabel(p))+"</b>"}</div>
-        ${props.length? `<div class="tdprops">${props.map(pr=>{
+        ${props.length? `<div class="tdlist">${props.map(pr=>{
           const st = S.props[pr.id], c = GROUPS[pr.group].color;
-          const build = st.houses===5? " \u{1f3e8}" : st.houses>0? " "+st.houses+"\u{1f3e0}" : "";
-          return `<span class="tdchipp ${st.mortgaged?"mort":""}"
-            style="background:${c}; color:${inkOn(c)}">${esc(pr.name)}${build}${st.mortgaged?" \u2298":""}</span>`;
+          const bits = [];
+          if (st.houses===5) bits.push("1 Hotel");
+          else if (st.houses>0) bits.push(st.houses + (st.houses===1? " House" : " Houses"));
+          if (st.mortgaged) bits.push("Mortgaged");
+          return `<div class="tdli"><i class="sw" style="background:${c}"></i><span class="nm">${esc(pr.name)}${
+            bits.length? ` \u2014 <b>${bits.join(" \u00b7 ")}</b>` : ""}</span></div>`;
         }).join("")}</div>` : `<div class="tdnone">no properties</div>`}
       </div>`;
     }).join("")}
-    <div class="tdfoot">\u2298 mortgaged \u00b7 \u{1f3e0} houses \u00b7 \u{1f3e8} hotel</div>
   </div>`;
 }
 function nameOf(id){
