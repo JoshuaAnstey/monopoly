@@ -1721,6 +1721,7 @@ function quickAction(plId, a){
   if (pl.bankrupt){ toast(pl.name+" is bankrupt"); return; }
   if (a==="go"){ transfer("BANK", plId, S.settings.goAmount, "passed GO", "go"); toast(pl.name+" +"+fmt(S.settings.goAmount)); }
   else if (a==="collect"){ askAmount({title:"Collect from Bank", sub:pl.name+" receives"}, v=>transfer("BANK", plId, v, "", "bankIn")); }
+  else if (a==="rename"){ openRenamePlayer(plId); }
   else if (a==="paybank"){ openPayBank(plId); }
   else if (a==="payplayer"){ pickPlayer("Who does "+pl.name+" pay?", plId, toId=>{
     askAmount({title:pl.name+" pays "+player(toId).name}, v=>transfer(plId, toId, v, "", "player"));
@@ -1747,6 +1748,7 @@ function openPlayerSheet(plId){
       <button class="act" data-a="paybank"><span class="ic">🏦</span>Pay ${S.settings.freeParking? "Bank / Pot":"Bank"}…<span class="sub2">taxes, fees, cards</span></button>
       <button class="act" data-a="collect"><span class="ic">💰</span>Collect from Bank…<span class="sub2">cards, refunds, rewards</span></button>
       <button class="act" data-a="manage"><span class="ic">🏗</span>Manage Properties<span class="meta">${props.length}</span></button>
+      <button class="act" data-a="rename"><span class="ic">✏️</span>Rename Player…</button>
       <button class="act red" data-a="bankrupt"><span class="ic">💀</span>Declare Bankruptcy</button>
     </div>
   `, w=>{
@@ -1756,6 +1758,58 @@ function openPlayerSheet(plId){
       quickAction(plId, b.dataset.a);
     });
   });
+}
+/* A player's name is also the key the stats tables are keyed on, so renaming is
+   not just a label change: the rename has to carry this game's history across or
+   the same game shows up twice, once under each name. It deliberately does NOT
+   go through mutate() — undoing a rename locally, after the database had already
+   been re-keyed, would leave the two out of step. */
+function openRenamePlayer(plId){
+  const pl = player(plId);
+  openPanel(`
+    <h2>Rename player</h2>
+    <div class="sub">Their record in this game follows the new name.</div>
+    <div class="field" style="margin-top:8px">
+      <input type="text" id="rp_v" value="${esc(pl.name)}" maxlength="20" autocapitalize="words"></div>
+    <button class="confirmbtn" id="rp_ok">Save name</button>
+  `, w=>{
+    const go = async ()=>{
+      const v = w.querySelector("#rp_v").value.trim();
+      if (!v){ toast("Give them a name"); return; }
+      if (S.players.some(p=>p.id!==plId && p.name.toLowerCase()===v.toLowerCase())){
+        toast("Someone else at the table has that name"); return;
+      }
+      const old = pl.name;
+      closePanel(w);
+      if (v === old) return;
+      await renamePlayer(plId, old, v);
+    };
+    w.querySelector("#rp_ok").addEventListener("click", go);
+    w.querySelector("#rp_v").addEventListener("keydown", e=>{ if (e.key==="Enter") go(); });
+  });
+}
+async function renamePlayer(plId, oldName, newName){
+  player(plId).name = newName;
+  logLine(oldName + " is now called " + newName);
+  renderGame();
+  if (!canSave() || !gameId){ toast("Renamed to " + newName); return; }
+  // Re-key the stats row BEFORE the next save: the save's trigger upserts on
+  // (game, name), so if the old row is still there it inserts a second one.
+  clearTimeout(saveTimer); saveTimer = null;
+  const q = n => encodeURIComponent(n);
+  try {
+    await sb("/rest/v1/game_stats?game_id=eq." + gameId + "&player_name=eq." + q(oldName),
+      { method:"PATCH", body: JSON.stringify({ player_name: newName }) });
+    await saveNow();
+    // The old roster entry is dead once no game refers to it.
+    const left = await sb("/rest/v1/game_stats?player_name=eq." + q(oldName) + "&select=id&limit=1");
+    if (!left || !left.length) await sb("/rest/v1/players?name=eq." + q(oldName), { method:"DELETE" });
+    toast("Renamed to " + newName);
+  } catch(e){
+    console.error(e);
+    scheduleSave();
+    toast("Renamed here — stats may still show " + oldName);
+  }
 }
 function pickPlayer(title, exceptId, cb, opts={}){
   const list = S.players.filter(p=>!p.bankrupt && p.id!==exceptId);
