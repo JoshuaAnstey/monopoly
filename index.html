@@ -407,6 +407,17 @@
   .chip{padding:9px 13px; border-radius:999px; background:var(--card); border:1px solid var(--line);
     font-weight:800; font-size:14px}
   .chip:active{background:var(--card2)}
+  .dicehow{font-size:13px; line-height:1.45; color:var(--ink2); background:var(--sky-tint);
+    border:1px solid #BFE4F8; border-radius:12px; padding:10px 12px; margin:2px 0 12px}
+  .dicehow b{color:var(--ink); font-weight:800}
+  .dicemath{text-align:center; font-size:30px; font-weight:900; padding:2px 0 12px;
+    font-variant-numeric:tabular-nums}
+  .dicemath .dim{font-size:17px; font-weight:700; color:var(--ink3)}
+  .dicegrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  .dicegrid button{padding:15px 0; font-size:21px; font-weight:800; background:var(--card);
+    border:1px solid var(--line); border-radius:12px}
+  .dicegrid button:active{background:var(--card2)}
+  .dicegrid button.on{background:var(--sky-btn); border-color:var(--sky-btn); color:#fff}
   .pad{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
   .pad button{padding:15px 0; font-size:22px; font-weight:800; background:var(--card); border:1px solid var(--line); border-radius:12px}
   .pad button:active{background:var(--card2)}
@@ -1236,6 +1247,36 @@ function askAmount({title, sub, initial=0, confirmLabel="Confirm", danger=false}
     });
   });
 }
+/* Utility rent is the only place the banker enters something that ISN'T money.
+   Reusing the cash numpad here put a "$" in front of a dice roll, which read as
+   "$8 of rent". This panel offers the eleven possible two-dice totals and shows
+   the multiplication happening, so what is being entered is never in doubt. */
+function askDiceTotal({property, multiplier, payer, owner}, cb){
+  let total = 0;
+  const w = openPanel(`
+    <h2>Dice total</h2>
+    <div class="sub">${esc(payer)} \u2192 ${esc(owner)} \u00b7 ${esc(property)}</div>
+    <div class="dicehow">Tap what they rolled \u2014 <b>both dice added together</b>.
+      Rent is that total \u00d7 <b>${multiplier}</b>${multiplier===10
+        ? " (they own both utilities)" : " (they own one utility)"}.</div>
+    <div class="dicemath" id="dm_v"><span class="dim">total \u00d7 ${multiplier} = </span><b>\u2014</b></div>
+    <div class="dicegrid">
+      ${[2,3,4,5,6,7,8,9,10,11,12].map(n=>`<button data-t="${n}">${n}</button>`).join("")}
+    </div>
+    <button class="confirmbtn" id="dt_ok" disabled>Charge rent</button>
+  `, w=>{
+    const out = w.querySelector("#dm_v"), okb = w.querySelector("#dt_ok");
+    w.querySelector(".dicegrid").addEventListener("click", e=>{
+      const b = e.target.closest("[data-t]"); if (!b) return;
+      total = +b.dataset.t;
+      w.querySelectorAll(".dicegrid button").forEach(x=>x.classList.toggle("on", x===b));
+      out.innerHTML = `<span class="dim">${total} \u00d7 ${multiplier} = </span><b>${fmt(total*multiplier)}</b>`;
+      okb.textContent = "Charge " + fmt(total*multiplier);
+      okb.disabled = false;
+    });
+    okb.addEventListener("click", ()=>{ if (!total) return; closePanel(w); cb(total); });
+  });
+}
 function confirmPanel({title, sub, confirmLabel="Confirm", danger=false}, cb){
   openPanel(`
     <h2>${esc(title)}</h2>
@@ -1795,16 +1836,16 @@ function openPayRent(plId){
     detail: p=>{
       const st=S.props[p.id]; const ow=player(st.owner);
       if (st.mortgaged) return {right:"no rent", sub:ow.name+" · mortgaged", disabled:true};
-      return {right: p.group==="util"? "dice ×"+(GROUP_MEMBERS.util.every(id=>S.props[id]&&S.props[id].owner===st.owner)?10:4) : fmt(rentFor(p.id)),
+      return {right: p.group==="util"? "dice total ×"+(GROUP_MEMBERS.util.every(id=>S.props[id]&&S.props[id].owner===st.owner)?10:4) : fmt(rentFor(p.id)),
         sub:"owned by "+ow.name + (st.houses? (st.houses===5?" · hotel":" · "+st.houses+" house"+(st.houses>1?"s":"")) : "")};
     },
     onPick: p=>{
       const st=S.props[p.id]; const ow=player(st.owner);
       if (p.group==="util"){
         const both = GROUP_MEMBERS.util.every(id=>S.props[id]&&S.props[id].owner===st.owner);
-        askAmount({title:"Dice roll?", sub:"Utility rent = roll × "+(both?10:4), confirmLabel:"Charge rent"}, roll=>{
+        askDiceTotal({property:p.name, multiplier:both?10:4, payer:pl.name, owner:ow.name}, roll=>{
           const amt = rentFor(p.id, roll);
-          transfer(plId, ow.id, amt, "rent — "+p.name+" (rolled "+roll+")", "rent");
+          transfer(plId, ow.id, amt, "rent — "+p.name+" (rolled "+roll+", \u00d7"+(both?10:4)+")", "rent");
           toast(fmt(amt)+" to "+ow.name);
         });
       } else {
