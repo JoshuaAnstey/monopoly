@@ -184,22 +184,28 @@
     color:var(--ink3); display:flex; align-items:baseline; gap:.7vw; margin-bottom:.8vh; flex:none}
   .tvpanel h3 small{font-size:1.3vh; letter-spacing:0; text-transform:none; color:var(--ink3); font-weight:600}
   .tvpred{grid-area:pred}
-  .predlist{display:flex; flex-direction:column; gap:.7vh; overflow:hidden; min-height:0;
+  .predlist{display:flex; flex-direction:column; gap:.6vh; overflow:hidden; min-height:0;
     flex:1; justify-content:space-evenly}
   .predrow{display:grid; grid-template-columns:auto 1fr auto; grid-template-areas:
-    "tok name pct" "bar bar bar" "fac fac fac"; align-items:center; gap:.3vh .6vw;
-    padding:.7vh .8vw; border-radius:1vh; background:var(--bg); border:1px solid var(--line-soft)}
+    "tok name pct" "why why why" "bar bar bar" "fac fac fac"; align-items:center; gap:.2vh .6vw;
+    padding:.6vh .8vw; border-radius:1vh; background:var(--bg); border:1px solid var(--line-soft)}
   .predrow.lead{border-color:var(--sky); background:var(--sky-tint)}
-  .predrow.out{opacity:.4; grid-template-areas:"tok name pct"}
+  .predrow.out{opacity:.45; grid-template-areas:"tok name pct" "why why why"}
   .predrow svg.tok{grid-area:tok}
   .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
-  .predrow .why{grid-area:name; justify-self:end; font-size:1.3vh; color:var(--ink3);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:12vw}
+  .predrow .why{grid-area:why; justify-self:start; font-size:1.35vh; color:var(--ink2);
+    white-space:normal; margin:0 0 .3vh}
   .predrow .pct{grid-area:pct; font-size:2.2vh; font-weight:900; font-variant-numeric:tabular-nums}
   .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
   .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
   .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.2vh}
-  .fbar{flex:1; height:.45vh; border-radius:.3vh; background:var(--line); overflow:hidden}
+  .fackey{padding:0 .8vw .7vh; flex:none}
+  .fackey .kt{font-size:1.25vh; font-weight:600; color:var(--ink3); line-height:1.35; margin-bottom:.45vh}
+  .fackey .kcols{display:flex; gap:.4vw}
+  .fackey .kcols span{flex:1; font-size:1.2vh; font-weight:800; color:var(--ink2); text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .fackey .kcols i{font-style:normal; font-weight:700; color:var(--ink3)}
+  .fbar{flex:1; height:.6vh; border-radius:.3vh; background:var(--line); overflow:hidden}
   .fbar i{display:block; height:100%; opacity:.75}
 
   .tvlog{grid-area:log}
@@ -291,6 +297,10 @@
   .qab .ic{display:block; font-size:17px; margin-bottom:3px}
   .qab:active{background:var(--card2); color:var(--ink)}
   .qab.go{background:var(--sky-tint); border-color:var(--sky); color:var(--sky-ink)}
+  .qab.wide{grid-column:1/-1; display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:10px 8px; font-size:12.5px}
+  .qab.wide .ic{margin:0; font-size:15px}
+  .qab.wide b{color:var(--ink); font-weight:900}
 
   /* ---------- bottom bar ---------- */
   .bbar{position:fixed; bottom:0; left:0; right:0; display:flex; gap:10px; justify-content:center;
@@ -1365,6 +1375,8 @@ function renderGame(){
               <button class="qab" data-qa="payplayer" data-pl="${p.id}"><span class="ic">🤝</span>Pay</button>
               <button class="qab" data-qa="paybank" data-pl="${p.id}"><span class="ic">🏦</span>Tax/Fee</button>
               <button class="qab" data-qa="collect" data-pl="${p.id}"><span class="ic">💰</span>Collect</button>
+              <button class="qab wide" data-qa="manage" data-pl="${p.id}"><span class="ic">🏘</span>Manage Properties${
+                playerProps(p.id).length ? ` <b>${playerProps(p.id).length}</b>` : ""}</button>
             </div>`}
           </div>`).join("")}
       </div>
@@ -1948,6 +1960,16 @@ function renderTV(){
         <h3>Win probability
           <small>${S.finished ? "final" : (pred.decisive < .3 ? "early — anyone's game"
             : pred.decisive < .65 ? "taking shape" : "late game")}</small></h3>
+        <div class="fackey">
+          <div class="kt">Big bar = chance of winning · small bars = what's driving it,
+            each player's share of the table</div>
+          <div class="kcols">
+            <span>Net worth <i>35%</i></span>
+            <span>Monopolies <i>30%</i></span>
+            <span>Building <i>20%</i></span>
+            <span>Cash <i>15%</i></span>
+          </div>
+        </div>
         <div class="predlist">
           ${order.filter(p=>!p.bankrupt).map(p=>tvPredRow(p, pred)).join("")}
           ${S.players.filter(p=>p.bankrupt).map(p=>`
@@ -2030,7 +2052,7 @@ function shortName(pr){
 function tvPredRow(p, pred){
   const pct = (pred.probs[p.id]||0)*100;
   const f = pred.factors[p.id] || {};
-  const bar = (k,label) => `<span class="fbar" title="${label}">
+  const bar = (k,label) => `<span class="fbar" title="${label} — ${Math.round((f[k]||0)*100)}% of the table">
       <i style="width:${Math.round((f[k]||0)*100)}%; background:${p.color}"></i></span>`;
   return `
     <div class="predrow ${pred.leader===p.id?"lead":""}">
