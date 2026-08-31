@@ -134,7 +134,7 @@
   .tv{height:100vh; display:grid; gap:.9vh 1vw; padding:1.2vh 1.1vw;
     grid-template-columns:1.8fr 1fr;
     grid-template-rows:auto minmax(0,1fr) minmax(0,.55fr);
-    grid-template-areas:"hdr hdr" "players pred" "chart log";}
+    grid-template-areas:"hdr hdr" "players side" "chart side";}
   .tvhdr{grid-area:hdr; display:flex; align-items:baseline; gap:1.6vw; padding:0 .3vw .4vh}
   .tvtitle{font-size:2.5vh; font-weight:900; letter-spacing:.3px; display:flex; align-items:baseline; gap:.8vw}
   .tvtitle small{font-size:1.7vh; font-weight:700; color:var(--ink2)}
@@ -183,13 +183,16 @@
   .tvpanel h3{font-size:1.5vh; font-weight:800; letter-spacing:.9px; text-transform:uppercase;
     color:var(--ink3); display:flex; align-items:baseline; gap:.7vw; margin-bottom:.8vh; flex:none}
   .tvpanel h3 small{font-size:1.3vh; letter-spacing:0; text-transform:none; color:var(--ink3); font-weight:600}
-  .tvpred{grid-area:pred}
-  .predlist{display:flex; flex-direction:column; gap:.6vh; overflow:hidden; min-height:0;
-    flex:1; justify-content:space-evenly}
+  .tvside{grid-area:side; display:flex; flex-direction:column; gap:.9vh; min-height:0}
+  .tvside .tvpred{flex:none; min-height:0}
+  .tvside .tvlog{flex:1; min-height:0}
+  .predlist{display:flex; flex-direction:column; gap:0; overflow:hidden; min-height:0}
   .predrow{display:grid; grid-template-columns:auto 1fr auto; grid-template-areas:
-    "tok name pct" "why why why" "bar bar bar" "fac fac fac"; align-items:center; gap:.2vh .6vw;
-    padding:.6vh .8vw; border-radius:1vh; background:var(--bg); border:1px solid var(--line-soft)}
-  .predrow.lead{border-color:var(--sky); background:var(--sky-tint)}
+    "tok name pct" "why why why" "bar bar bar" "fac fac fac"; align-items:center; gap:.15vh .6vw;
+    padding:.7vh .6vw; margin:0 -.6vw; background:transparent; border:0;
+    border-bottom:1px solid var(--line-soft); border-radius:0}
+  .predrow:last-child{border-bottom:0}
+  .predrow.lead{background:var(--sky-tint); border-radius:.8vh}
   .predrow.out{opacity:.45; grid-template-areas:"tok name pct" "why why why"}
   .predrow svg.tok{grid-area:tok}
   .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
@@ -198,17 +201,19 @@
   .predrow .pct{grid-area:pct; font-size:2.2vh; font-weight:900; font-variant-numeric:tabular-nums}
   .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
   .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
-  .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.2vh}
-  .fackey{padding:0 .8vw .7vh; flex:none}
+  .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.35vh}
+  .fackey{padding:0 0 .7vh; flex:none}
   .fackey .kt{font-size:1.25vh; font-weight:600; color:var(--ink3); line-height:1.35; margin-bottom:.45vh}
   .fackey .kcols{display:flex; gap:.4vw}
-  .fackey .kcols span{flex:1; font-size:1.2vh; font-weight:800; color:var(--ink2); text-align:center;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .fackey .kcols span{flex:1; min-width:0; font-size:1.2vh; font-weight:800; color:var(--ink2);
+    text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .fackey .kcols i{font-style:normal; font-weight:700; color:var(--ink3)}
-  .fbar{flex:1; height:.6vh; border-radius:.3vh; background:var(--line); overflow:hidden}
-  .fbar i{display:block; height:100%; opacity:.75}
+  .fcell{flex:1; min-width:0}
+  .fcell .fnum{display:block; font-style:normal; font-size:1.15vh; font-weight:800;
+    color:var(--ink3); line-height:1; margin-bottom:.25vh; font-variant-numeric:tabular-nums}
+  .fbar{display:block; height:.6vh; border-radius:.3vh; background:var(--line); overflow:hidden}
+  .fbar i{display:block; height:100%; opacity:.85}
 
-  .tvlog{grid-area:log}
   .logscroll{overflow:hidden; display:flex; flex-direction:column; gap:.35vh; min-height:0;
     -webkit-mask-image:linear-gradient(to bottom, #000 88%, transparent 100%);
     mask-image:linear-gradient(to bottom, #000 88%, transparent 100%)}
@@ -1956,6 +1961,7 @@ function renderTV(){
         ${order.map(p=>tvPlayerCard(p, pred)).join("")}
       </section>
 
+      <div class="tvside">
       <section class="tvpanel tvpred">
         <h3>Win probability
           <small>${S.finished ? "final" : (pred.decisive < .3 ? "early — anyone's game"
@@ -1991,6 +1997,7 @@ function renderTV(){
           }).join("") || `<div class="tvempty">Nothing yet — transactions appear here.</div>`}
         </div>
       </section>
+      </div>
 
       <section class="tvpanel tvchart">
         <h3>Win probability over time<small>each player's chance of winning after every move</small></h3>
@@ -2052,8 +2059,12 @@ function shortName(pr){
 function tvPredRow(p, pred){
   const pct = (pred.probs[p.id]||0)*100;
   const f = pred.factors[p.id] || {};
-  const bar = (k,label) => `<span class="fbar" title="${label} — ${Math.round((f[k]||0)*100)}% of the table">
-      <i style="width:${Math.round((f[k]||0)*100)}%; background:${p.color}"></i></span>`;
+  const bar = (k,label) => {
+    const fp = Math.round((f[k]||0)*100);
+    return `<span class="fcell" title="${label} — ${fp}% of the table">
+      <i class="fnum">${fp}%</i>
+      <span class="fbar"><i style="width:${fp}%; background:${p.color}"></i></span></span>`;
+  };
   return `
     <div class="predrow ${pred.leader===p.id?"lead":""}">
       ${tokenSVG(p.token, p.color, 22)}
