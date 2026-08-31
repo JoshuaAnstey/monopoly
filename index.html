@@ -294,6 +294,18 @@
   .pcard .pm{margin-top:6px; display:flex; gap:4px; flex-wrap:wrap; min-height:10px; padding:0 2px}
   .pcard .dot{width:9px; height:9px; border-radius:3px; border:1px solid rgba(31,35,56,.25)}
   .pcard .dot.mort{opacity:.3}
+  /* ---------- paused ---------- */
+  .pausebn{display:flex; align-items:center; gap:10px; margin:0 0 12px; padding:12px 14px;
+    background:var(--brand-tint); border:1px solid var(--brand); border-radius:var(--radius);
+    box-shadow:var(--shadow)}
+  .pausebn .pi{font-size:22px; line-height:1; flex:none}
+  .pausebn .px{flex:1; min-width:0}
+  .pausebn .pt{display:block; font-size:14.5px; font-weight:900; color:var(--brand-ink)}
+  .pausebn .ps{display:block; font-size:12px; font-weight:600; color:var(--ink2); margin-top:2px}
+  .pausebn .pgo{flex:none; background:var(--brand-btn); color:#fff; border-radius:12px;
+    padding:11px 18px; font-size:13.5px; font-weight:900}
+  .pausebn .pgo:active{filter:brightness(.92)}
+  .paused .pgrid, .paused .bankbar{opacity:.45; pointer-events:none; filter:saturate(.4)}
   .pcard.bankrupt{opacity:.45}
   .pcard.bankrupt .pb{text-decoration:line-through}
   .qa{display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px}
@@ -314,6 +326,9 @@
     padding:12px 8px; font-size:13px; font-weight:800; text-align:center; box-shadow:var(--shadow)}
   .bbar .bb:active{background:var(--card2)}
   .bbar .bb.undo{background:var(--indigo-tint); border-color:var(--indigo); color:var(--indigo-ink)}
+  .bbar .bb.pause{background:var(--brand-tint); border-color:var(--brand); color:var(--brand-ink)}
+  .bbar .bb.pause.on{background:var(--brand-btn); border-color:var(--brand-btn); color:#fff}
+  .bbar .bb[disabled]{opacity:.4}
   .bbar .bb .ic{font-size:17px; display:block; margin-bottom:2px}
 
   /* ---------- overlays ---------- */
@@ -534,6 +549,7 @@ function newGameState(name, players, opts){
     freeParking: 0,
     log: [],
     finished: false,
+    paused: false, pausedAt: null,
   };
 }
 /* Older saved games predate the stats tallies — backfill on load. */
@@ -545,6 +561,7 @@ function migrateState(st){
     if (!p.token) p.token = TOKENS[i%TOKENS.length].id;   // games from before pieces existed
   });
   if (st.endedAt === undefined) st.endedAt = null;
+  if (st.paused === undefined){ st.paused = false; st.pausedAt = null; }
   st.v = 2;
   return st;
 }
@@ -691,6 +708,7 @@ function logLine(text){
   if (S.log.length>400) S.log.length = 400;
 }
 function mutate(fn, logText){
+  if (S && S.paused){ toast("Game is paused — hit Resume"); return; }
   pushSnapshot();
   fn();
   if (logText) logLine(logText);
@@ -716,12 +734,29 @@ function sampleProbabilities(){
 }
 
 function undo(){
+  if (S && S.paused){ toast("Game is paused — hit Resume"); return; }
   if (!snapshots.length){ toast("Nothing to undo"); return; }
   const last = S.log[0];
   S = JSON.parse(snapshots.pop());
   renderGame();
   scheduleSave();
   toast("Undone" + (last? ": " + last.x.slice(0,40) : ""));
+}
+/* Pause locks every money action. It deliberately sits outside mutate()/undo so
+   a pause can never be rewound away, leaving the table locked with no way back. */
+function togglePause(){
+  if (!S) return;
+  S.paused = !S.paused;
+  S.pausedAt = S.paused ? Date.now() : null;
+  logLine(S.paused ? "⏸ Game paused" : "▶️ Game resumed");
+  renderGame();
+  scheduleSave();
+  toast(S.paused ? "Paused — the cards are locked" : "Resumed");
+}
+function pausedLabel(){
+  if (!S || !S.paused || !S.pausedAt) return "";
+  const m = Math.round((Date.now() - S.pausedAt)/60000);
+  return m < 1 ? "just now" : m === 1 ? "for 1 min" : "for " + m + " min";
 }
 function nameOf(id){
   if (id==="BANK") return "the Bank";
@@ -1350,7 +1385,13 @@ function renderGame(){
       </div>
       <button class="iconbtn" id="g_undo" aria-label="Undo">↩︎</button>
     </div>
-    <div class="scroller">
+    <div class="scroller ${S.paused ? "paused" : ""}">
+      ${S.paused ? `<div class="pausebn">
+        <span class="pi">\u23f8</span>
+        <span class="px"><span class="pt">Game paused</span>
+          <span class="ps">Cards are locked \u2014 paused ${pausedLabel()}</span></span>
+        <button class="pgo" id="g_resume">Resume</button>
+      </div>` : ""}
       <div class="bankbar">
         <button class="bankcard" id="g_bank">
           <div class="bl">🏦 Bank</div><div class="bv">∞ &nbsp;<span style="font-size:12px;color:var(--ink3)">🏠 ${TOTAL_HOUSES-hu.houses} · 🏨 ${TOTAL_HOTELS-hu.hotels}</span></div>
@@ -1388,7 +1429,8 @@ function renderGame(){
       <div style="height:12px"></div>
     </div>
     <div class="bbar">
-      <button class="bb undo" id="g_undo2"><span class="ic">↩️</span>Undo</button>
+      <button class="bb undo" id="g_undo2" ${S.paused?"disabled":""}><span class="ic">↩️</span>Undo</button>
+      <button class="bb pause ${S.paused?"on":""}" id="g_pause"><span class="ic">${S.paused?"▶️":"⏸"}</span>${S.paused?"Resume":"Pause"}</button>
       <button class="bb" id="g_props"><span class="ic">🏘</span>Properties</button>
       <button class="bb" id="g_log"><span class="ic">📜</span>Log</button>
       <button class="bb" id="g_menu"><span class="ic">⋯</span>More</button>
@@ -1402,6 +1444,8 @@ function renderGame(){
   });
   $("#g_undo").addEventListener("click", undo);
   $("#g_undo2").addEventListener("click", undo);
+  $("#g_pause").addEventListener("click", togglePause);
+  if (S.paused) $("#g_resume").addEventListener("click", togglePause);
   $("#g_bank").addEventListener("click", openBankSheet);
   if (S.settings.freeParking) $("#g_fp").addEventListener("click", openFreeParking);
   $("#g_props").addEventListener("click", ()=>openPropertyBrowser());
