@@ -204,11 +204,11 @@
     color:var(--ink3); display:flex; align-items:baseline; gap:.7vw; margin-bottom:.8vh; flex:none}
   .tvpanel h3 small{font-size:1.3vh; letter-spacing:0; text-transform:none; color:var(--ink3); font-weight:600}
   .tvside{grid-area:side; display:flex; flex-direction:column; gap:.9vh; min-height:0}
-  .tvside .tvpred{flex:none; min-height:0}
+  .tvside .tvpred{flex:none; min-height:0; position:relative}
   .tvside .tvlog{flex:1; min-height:0}
   .predlist{display:flex; flex-direction:column; gap:0; overflow:hidden; min-height:0}
   .predrow{display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:
-    "tok name counts pct" "why why why why" "bar bar bar bar" "fac fac fac fac";
+    "tok name counts pct" "why why why why" "fac fac fac fac";
     align-items:center; gap:.15vh .6vw;
     padding:.7vh .6vw; margin:0 -.6vw; background:transparent; border:0;
     border-bottom:1px solid var(--line-soft); border-radius:0}
@@ -219,17 +219,25 @@
   .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
   .predrow .why{grid-area:why; justify-self:start; font-size:1.35vh; color:var(--ink2);
     white-space:normal; margin:0 0 .3vh}
-  .predrow .pcounts{grid-area:counts; justify-self:start; align-self:end; font-size:1.25vh;
-    font-weight:700; color:var(--ink3); white-space:nowrap; overflow:hidden;
-    text-overflow:ellipsis; min-width:0; padding-bottom:.25vh}
+  .predrow .pcounts{grid-area:counts; justify-self:start; align-self:center; display:flex;
+    flex-wrap:wrap; gap:.3vh .35vw; min-width:0; overflow:hidden}
+  .cchip{font-style:normal; font-size:1.15vh; font-weight:800; color:var(--ink2);
+    background:var(--card2); border:1px solid var(--line-soft); border-radius:.6vh;
+    padding:.25vh .5vw; white-space:nowrap}
+  .cchip.zero{color:var(--ink3); background:transparent; border-color:var(--line-soft); opacity:.55}
   .predrow .pct{grid-area:pct; font-size:2.2vh; font-weight:900; font-variant-numeric:tabular-nums}
-  .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
-  .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
   .predrow .factors{grid-area:fac; display:flex; gap:.4vw; margin-top:.35vh}
-  /* Reference text, not scoreboard: read once or twice a game, so it steps
-     back out of the way of the numbers. */
-  .facnote{padding:0 0 .8vh; flex:none; font-size:1.1vh; font-weight:400;
-    color:var(--ink3); line-height:1.45}
+  /* Reference text, not scoreboard: tucked behind a button so it costs no
+     height until someone actually asks. */
+  .howbtn{margin-left:auto; flex:none; font-size:1.2vh; font-weight:700; letter-spacing:0;
+    text-transform:none; color:var(--sky-ink); background:var(--sky-tint);
+    border:1px solid #BFE4F8; border-radius:.7vh; padding:.35vh .7vw; cursor:pointer}
+  .howbtn:hover{background:#D5EEFB}
+  .howbtn[aria-expanded="true"]{background:var(--sky-btn); border-color:var(--sky-btn); color:#fff}
+  .howpop{position:absolute; z-index:5; right:1vw; top:4.2vh; width:26vw; max-width:420px;
+    background:var(--card); border:1px solid var(--line); border-radius:1vh;
+    box-shadow:var(--shadow-lg); padding:1.1vh 1vw; font-size:1.35vh; font-weight:500;
+    color:var(--ink2); line-height:1.5}
   .fcell{flex:1; min-width:0}
   .fcell .fnum{display:block; font-style:normal; font-size:1.15vh; font-weight:800;
     color:var(--ink); line-height:1; margin-bottom:.25vh; font-variant-numeric:tabular-nums;
@@ -2259,6 +2267,7 @@ function openAddPlayer(){
 /* ================= GAME NIGHT (TV dashboard) =================
    Read-only. Opened as ?tv=<gameId>, polls the saved game every few
    seconds so it follows whatever the banker does on their phone. */
+let tvHowOpen = false;
 let tvFocus = null, tvFocusLocked = false;   // legend focus: hover previews, click sticks
 let tvGameId = null, tvTimer = null, tvLastUpdated = null, tvHover = null;
 
@@ -2343,10 +2352,14 @@ function renderTV(){
       <section class="tvpanel tvpred">
         <h3>Win probability
           <small>${S.finished ? "final" : (pred.decisive < .3 ? "early — anyone's game"
-            : pred.decisive < .65 ? "taking shape" : "late game")}</small></h3>
-        <div class="facnote">Each player's odds come from their share of the table's
-          net worth (weighted 35%), monopolies (30%), houses and hotels (20%) and cash (15%).
-          The odds start near even and sharpen as monopolies and buildings appear.</div>
+            : pred.decisive < .65 ? "taking shape" : "late game")}</small>
+          <button class="howbtn" id="tv_how" aria-expanded="false"
+            aria-controls="tv_howpop">How is this calculated?</button></h3>
+        <div class="howpop" id="tv_howpop" hidden role="dialog" aria-label="How win probability is calculated">
+          Each player's odds come from their share of the table's net worth (weighted 35%),
+          monopolies (30%), houses and hotels (20%) and cash (15%). The odds start near even
+          and sharpen as monopolies and buildings appear.
+        </div>
         <div class="predlist">
           ${order.filter(p=>!p.bankrupt).map(p=>tvPredRow(p, pred)).join("")}
           ${S.players.filter(p=>p.bankrupt).map(p=>`
@@ -2380,6 +2393,7 @@ function renderTV(){
     </div>
   `);
   fitTVHeaders();
+  wireHowPopover();
   wireChartLegend();
   const ex = document.getElementById("tv_exit");
   if (ex) ex.addEventListener("click", ()=>{ location.href = location.pathname; });
@@ -2391,6 +2405,25 @@ function plural(n, one, many){ return n + " " + (n===1 ? one : (many || one+"s")
    for the card we scale the whole row down rather than wrapping or truncating.
    Shrinking stops as soon as the name fits, and never goes below a readable
    floor — past that the ellipsis takes over. */
+/* The dashboard redraws on a timer, so whether the explainer is open has to
+   live outside the markup or it would snap shut every few seconds. */
+function wireHowPopover(){
+  const btn = document.getElementById("tv_how"), pop = document.getElementById("tv_howpop");
+  if (!btn || !pop) return;
+  const paint = ()=>{ pop.hidden = !tvHowOpen; btn.setAttribute("aria-expanded", String(tvHowOpen)); };
+  paint();
+  btn.addEventListener("click", e=>{ e.stopPropagation(); tvHowOpen = !tvHowOpen; paint(); });
+  pop.addEventListener("click", e=>e.stopPropagation());
+  if (!wireHowPopover.docBound){          // one document listener, not one per redraw
+    document.addEventListener("click", ()=>{ if (tvHowOpen){ tvHowOpen = false;
+      const p2 = document.getElementById("tv_howpop"), b2 = document.getElementById("tv_how");
+      if (p2) p2.hidden = true; if (b2) b2.setAttribute("aria-expanded","false"); } });
+    document.addEventListener("keydown", e=>{ if (e.key==="Escape" && tvHowOpen){ tvHowOpen = false;
+      const p2 = document.getElementById("tv_howpop"), b2 = document.getElementById("tv_how");
+      if (p2) p2.hidden = true; if (b2) b2.setAttribute("aria-expanded","false"); } });
+    wireHowPopover.docBound = true;
+  }
+}
 function fitTVHeaders(){
   document.querySelectorAll(".tvcard .tvtop").forEach(top=>{
     const name = top.querySelector(".tvname");
@@ -2465,14 +2498,13 @@ function tvPredRow(p, pred){
       <span class="pcounts">${(()=>{
         let h=0,t=0; const own = playerProps(p.id);
         own.forEach(pr=>{ const st=S.props[pr.id]; if (st.houses===5) t++; else h += st.houses||0; });
-        const bits = [own.length+" props", monopoliesOf(p.id)+" mono"];
-        if (h) bits.push(h+"\u{1f3e0}");
-        if (t) bits.push(t+"\u{1f3e8}");
-        return bits.join(" \u00b7 ");
+        const chips = [[own.length,"Property","Properties"], [monopoliesOf(p.id),"Monopoly","Monopolies"],
+                       [h,"House","Houses"], [t,"Hotel","Hotels"]];
+        return chips.map(([n,one,many])=>
+          `<i class="cchip${n?"":" zero"}">${n} ${n===1?one:many}</i>`).join("");
       })()}</span>
       <span class="why">${esc(predictWhy(p.id, f))}</span>
       <span class="pct">${pct<1?"<1":Math.round(pct)}%</span>
-      <span class="pbar"><i style="width:${Math.max(1,pct)}%; background:${p.color}"></i></span>
       <span class="factors">
         ${bar("netWorth","Net worth")}${bar("monopolies","Monopolies")}
         ${bar("development","Building")}${bar("cash","Cash")}
