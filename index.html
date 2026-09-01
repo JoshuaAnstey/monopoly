@@ -168,24 +168,29 @@
   .tvcard .stripe{position:absolute; top:0; left:0; right:0; height:.7vh}
   .tvcard.lead{border-color:var(--sky); background:var(--sky-tint)}
   .tvcard.out{opacity:.42}
-  .tvtop{display:flex; align-items:center; gap:.7vw; margin-top:.5vh}
-  .tvname{font-size:2.9vh; font-weight:900; flex:1; min-width:0; white-space:nowrap;
+  .tvtop{display:flex; flex-wrap:wrap; align-items:center; gap:.3vh .7vw; margin-top:.5vh}
+  .tvname{font-size:2.9vh; font-weight:900; flex:1 1 6ch; min-width:6ch; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis}
-  .crown{font-size:1.4vh; font-weight:800; color:var(--sky-ink); background:#D5EEFB;
-    padding:.3vh .8vh; border-radius:.7vh; vertical-align:middle}
-  .tvcash{font-size:3.4vh; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+  /* Its own flex child: inside .tvname the ellipsis ate the badge ("leadi…")
+     rather than the name it was meant to trim. */
+  .crown{flex:none; font-size:1.4vh; font-weight:800; color:var(--sky-ink); background:#D5EEFB;
+    padding:.3vh .8vh; border-radius:.7vh; white-space:nowrap}
+  .tvcash{flex:none; font-size:3.4vh; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
   .tvcash.neg{color:var(--brand-ink)}
   .tvstats{display:flex; flex-wrap:wrap; gap:.5vh 1.1vw; margin:1vh 0 1.1vh;
     font-size:1.8vh; color:var(--ink3)}
   .tvstats b{color:var(--ink2); font-weight:800}
   .tvstats .odds b{color:var(--sky-ink)}
   .tvprops{display:flex; flex-wrap:wrap; gap:.6vh; flex:1; align-content:flex-start}
-  .tvprops .grp{display:inline-flex; gap:3px; padding:3px; border-radius:.9vh; align-self:flex-start;
+  /* max-width + wrap: a three-deed set is wider than the card, and a row that
+     cannot wrap just runs off the edge under overflow:hidden. */
+  .tvprops .grp{display:inline-flex; flex-wrap:wrap; max-width:100%; gap:3px; padding:3px;
+    border-radius:.9vh; align-self:flex-start;
     background:color-mix(in srgb, var(--gc) 18%, #fff); border:1px solid var(--line-soft)}
   .tvprops .grp.full{border-color:var(--gc)}
   .tvprops .pc{font-size:1.55vh; font-weight:700; background:var(--gc);
-    padding:.4vh .7vh; border-radius:.6vh;
-    display:inline-flex; align-items:center; gap:.4vh; white-space:nowrap}
+    padding:.4vh .7vh; border-radius:.6vh; max-width:100%; min-width:0;
+    display:inline-flex; align-items:center; gap:.4vh; white-space:nowrap; overflow:hidden}
   .tvprops .pc.mort{opacity:.35; text-decoration:line-through}
   .tvprops .pc i{font-style:normal; font-weight:900; background:rgba(31,35,56,.5); color:#fff;
     border-radius:.4vh; padding:0 .35vh}
@@ -238,10 +243,20 @@
 
   .tvchart{grid-area:chart}
   .chartlegend{display:flex; flex-wrap:wrap; gap:.4vh 1vw; margin-bottom:.5vh; flex:none}
-  .lgd{display:inline-flex; align-items:center; gap:.4vw; font-size:1.35vh; color:var(--ink2); font-weight:700}
+  .lgd{display:inline-flex; align-items:center; gap:.4vw; font-size:1.35vh; color:var(--ink2);
+    font-weight:700; cursor:pointer; background:none; border:0; padding:.3vh .5vw;
+    border-radius:.7vh; transition:opacity .12s, background .12s}
   .lgd i{width:1.1vh; height:1.1vh; border-radius:.3vh; display:inline-block}
+  .lgd:hover{background:var(--card2)}
+  .lgd.on{background:var(--card2); color:var(--ink)}
+  .lgd.off{opacity:.4}
   .chartbox{position:relative; flex:1; min-height:0}
   .chartbox svg{display:block}
+  .chartbox .ser{transition:opacity .12s}
+  .chartbox .ser.out{opacity:.35}
+  /* after .ser.out on purpose: focus overrides the bankrupt fade */
+  .chartbox.focus .ser{opacity:.08}
+  .chartbox.focus .ser.on{opacity:1}
   .chartbox .gl{stroke:var(--line-soft); stroke-width:1}
   .chartbox .ax-line{stroke:var(--line); stroke-width:1}
   .chartbox .ax{fill:var(--ink3); font-size:11px; font-weight:600}
@@ -2228,6 +2243,7 @@ function openAddPlayer(){
 /* ================= GAME NIGHT (TV dashboard) =================
    Read-only. Opened as ?tv=<gameId>, polls the saved game every few
    seconds so it follows whatever the banker does on their phone. */
+let tvFocus = null, tvFocusLocked = false;   // legend focus: hover previews, click sticks
 let tvGameId = null, tvTimer = null, tvLastUpdated = null, tvHover = null;
 
 function isTV(){ return new URLSearchParams(location.search).has("tv"); }
@@ -2339,11 +2355,13 @@ function renderTV(){
       <section class="tvpanel tvchart">
         <h3>Win probability over time<small>each player's chance of winning after every move</small></h3>
         <div class="chartlegend">${S.players.map(p=>`
-          <span class="lgd"><i style="background:${p.color}"></i>${esc(p.name)}</span>`).join("")}</div>
+          <button class="lgd" data-pl="${p.id}" aria-pressed="false"
+            title="Show only ${esc(p.name)}"><i style="background:${p.color}"></i>${esc(p.name)}</button>`).join("")}</div>
         <div id="tv_chart" class="chartbox"></div>
       </section>
     </div>
   `);
+  wireChartLegend();
   const ex = document.getElementById("tv_exit");
   if (ex) ex.addEventListener("click", ()=>{ location.href = location.pathname; });
   drawProbChart(pred);
@@ -2362,7 +2380,8 @@ function tvPlayerCard(p, pred){
       <div class="stripe" style="background:${p.color}"></div>
       <div class="tvtop">
         ${tokenSVG(p.token, p.color, 40)}
-        <div class="tvname">${esc(p.name)}${pred.leader===p.id && !p.bankrupt?` <span class="crown">leading</span>`:""}</div>
+        <div class="tvname">${esc(p.name)}</div>
+        ${pred.leader===p.id && !p.bankrupt?`<span class="crown">leading</span>`:""}
         <div class="tvcash ${p.balance<0?"neg":""}">${fmtS(p.balance)}</div>
       </div>
       <div class="tvstats">
@@ -2423,6 +2442,42 @@ function tvPredRow(p, pred){
    Trend over time with the series as the subject → multi-line, categorical
    colour. Endpoints get a marker + direct label (dodged so they never
    collide); a crosshair reads out every player at any point in the game. */
+/* Legend focus. Hovering a name previews just that line; clicking pins it so you
+   can let go of the mouse. Applied by toggling classes rather than redrawing, so
+   it stays instant on a four-hundred-point chart. */
+function tvApplyFocus(){
+  if (tvFocus && S && !S.players.some(p=>p.id===tvFocus)){ tvFocus = null; tvFocusLocked = false; }
+  const box = document.querySelector("#tv_chart");
+  if (box){
+    box.classList.toggle("focus", !!tvFocus);
+    box.querySelectorAll(".ser").forEach(g=>g.classList.toggle("on", g.dataset.pl===tvFocus));
+  }
+  document.querySelectorAll(".chartlegend .lgd").forEach(b=>{
+    b.classList.toggle("on", b.dataset.pl===tvFocus);
+    b.classList.toggle("off", !!tvFocus && b.dataset.pl!==tvFocus);
+    b.setAttribute("aria-pressed", String(tvFocusLocked && b.dataset.pl===tvFocus));
+  });
+}
+function tvSetFocus(id, lock){
+  if (lock !== undefined) tvFocusLocked = lock;
+  tvFocus = id || null;
+  tvApplyFocus();
+}
+function wireChartLegend(){
+  const lg = document.querySelector(".chartlegend");
+  if (!lg) return;
+  lg.addEventListener("mouseover", e=>{
+    const b = e.target.closest("[data-pl]");
+    if (b && !tvFocusLocked) tvSetFocus(b.dataset.pl);
+  });
+  lg.addEventListener("mouseleave", ()=>{ if (!tvFocusLocked) tvSetFocus(null); });
+  lg.addEventListener("click", e=>{
+    const b = e.target.closest("[data-pl]"); if (!b) return;
+    const id = b.dataset.pl;
+    if (tvFocusLocked && tvFocus === id) tvSetFocus(null, false);   // click again to release
+    else tvSetFocus(id, true);
+  });
+}
 function drawProbChart(pred){
   const box = document.querySelector("#tv_chart");
   if (!box) return;
@@ -2434,7 +2489,10 @@ function drawProbChart(pred){
   if (pts.length < 2) pts.unshift({ t: S.createdAt, p: series.map(()=>1/Math.max(1,series.length)) });
 
   const W = box.clientWidth || 900, H = box.clientHeight || 260;
-  const m = { t:12, r:120, b:26, l:44 };
+  // The direct labels live in the right margin, so it has to fit the longest
+  // name — a fixed margin clipped anyone past about eight characters.
+  const longest = series.reduce((a,p)=>Math.max(a, p.name.length), 0);
+  const m = { t:12, r:Math.min(210, Math.max(120, longest*8.5 + 62)), b:26, l:44 };
   const iw = Math.max(10, W - m.l - m.r), ih = Math.max(10, H - m.t - m.b);
   const n = pts.length;
   const X = i => m.l + (n<2 ? iw : (i/(n-1))*iw);
@@ -2450,11 +2508,9 @@ function drawProbChart(pred){
     `<line class="gl" x1="${m.l}" y1="${Y(v)}" x2="${m.l+iw}" y2="${Y(v)}"/>
      <text class="ax" x="${m.l-8}" y="${Y(v)+4}" text-anchor="end">${v*100}%</text>`).join("");
 
-  const lines = series.map((p,i)=>{
-    const d = pts.map((s,j)=>`${X(j).toFixed(1)},${Y(val(j,i)).toFixed(1)}`).join("L");
-    return `<path d="M${d}" fill="none" stroke="${p.color}" stroke-width="2"
-      stroke-linejoin="round" stroke-linecap="round" opacity="${p.bankrupt?".35":"1"}"/>`;
-  }).join("");
+  // Built after the label dodge below, so each player's line, dot and label can
+  // live in one group — that group is what the legend dims or isolates.
+  const lineFor = i => "M" + pts.map((s,j)=>`${X(j).toFixed(1)},${Y(val(j,i)).toFixed(1)}`).join("L");
 
   // endpoint markers + direct labels, dodged apart so they stay readable
   const ends = series.map((p,i)=>({ p, i, v:val(n-1,i), y:Y(val(n-1,i)) }))
@@ -2465,22 +2521,25 @@ function drawProbChart(pred){
   const overflow = ends.length ? ends[ends.length-1].y - (m.t+ih) : 0;
   if (overflow > 0) ends.forEach(e=>{ e.y -= overflow; });
 
-  const markers = ends.map(e=>`
-    <circle cx="${X(n-1)}" cy="${Y(e.v)}" r="4.5" fill="${e.p.color}"
-      stroke="var(--card)" stroke-width="2" opacity="${e.p.bankrupt?".35":"1"}"/>`).join("");
-  const labels = ends.map(e=>`
-    <text class="dl" x="${m.l+iw+12}" y="${e.y+4}" opacity="${e.p.bankrupt?".45":"1"}"
-      >${esc(e.p.name)} <tspan style="fill:${e.p.color}; font-weight:900"
-      >${Math.round(e.v*100)}%</tspan></text>`).join("");
+  const endBy = {}; ends.forEach(e=>{ endBy[e.p.id] = e; });
+  const seriesG = series.map((p,i)=>{
+    const e = endBy[p.id];
+    return `<g class="ser${p.bankrupt?" out":""}" data-pl="${p.id}">
+      <path d="${lineFor(i)}" fill="none" stroke="${p.color}" stroke-width="2"
+        stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${X(n-1)}" cy="${Y(e.v)}" r="4.5" fill="${p.color}"
+        stroke="var(--card)" stroke-width="2"/>
+      <text class="dl" x="${m.l+iw+12}" y="${e.y+4}">${esc(p.name)}
+        <tspan style="fill:${p.color}; font-weight:900">${Math.round(e.v*100)}%</tspan></text>
+    </g>`;
+  }).join("");
 
   const mins = Math.max(0, Math.round(activeMs()/60000));
   box.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" role="img"
       aria-label="Each player's chance of winning after every move of the game">
       ${grid}
-      ${lines}
-      ${markers}
-      ${labels}
+      ${seriesG}
       <text class="ax" x="${m.l}" y="${H-8}">game start</text>
       <text class="ax" x="${m.l+iw}" y="${H-8}" text-anchor="end">now · ${n} moves · ${mins} min</text>
       <g id="tv_cross" style="display:none">
@@ -2492,6 +2551,7 @@ function drawProbChart(pred){
     </svg>
     <div id="tv_tip" class="charttip" hidden></div>`;
 
+  tvApplyFocus();   // the dashboard redraws on a timer; the focus must survive it
   const svg = box.querySelector("svg"), hit = box.querySelector("#tv_hit");
   const cross = box.querySelector("#tv_cross"), line = cross.querySelector("line");
   const dots = [...cross.querySelectorAll(".chd")], tip = box.querySelector("#tv_tip");
