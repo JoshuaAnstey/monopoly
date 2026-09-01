@@ -171,10 +171,10 @@
   .tvtop{display:flex; flex-wrap:wrap; align-items:center; gap:.3vh .7vw; margin-top:.5vh}
   .tvname{font-size:2.9vh; font-weight:900; flex:1 1 6ch; min-width:6ch; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis}
-  /* Its own flex child: inside .tvname the ellipsis ate the badge ("leadi…")
-     rather than the name it was meant to trim. */
-  .crown{flex:none; font-size:1.4vh; font-weight:800; color:var(--sky-ink); background:#D5EEFB;
-    padding:.3vh .8vh; border-radius:.7vh; white-space:nowrap}
+  /* Standing replaces the token here: the position is what you read across the
+     table at a glance, and the player's colour still says who it is. */
+  .tvrank{flex:none; font-size:2.4vh; font-weight:900; letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums; min-width:3.6ch}
   .tvcash{flex:none; font-size:3.4vh; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
   .tvcash.neg{color:var(--brand-ink)}
   .tvstats{display:flex; flex-wrap:wrap; gap:.5vh 1.1vw; margin:1vh 0 1.1vh;
@@ -216,6 +216,8 @@
   .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
   .predrow .why{grid-area:why; justify-self:start; font-size:1.35vh; color:var(--ink2);
     white-space:normal; margin:0 0 .3vh}
+  .predrow .counts{display:block; font-style:normal; font-size:1.2vh; color:var(--ink3);
+    font-weight:600; margin-top:.15vh}
   .predrow .pct{grid-area:pct; font-size:2.2vh; font-weight:900; font-variant-numeric:tabular-nums}
   .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
   .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
@@ -1645,6 +1647,12 @@ function renderSetup(){
 function renderGame(){
   closeAllPanels();
   if (!S) return renderHome();
+  // Every transaction re-renders this screen from scratch, which resets the
+  // scroll. Four players down the grid, that threw the banker back to the top
+  // after each tap. Carry the position across, but only when we were already
+  // on this screen — arriving from Home should start at the top.
+  const wasGame = !!document.querySelector(".bbar");
+  const keepScroll = wasGame ? (document.querySelector(".scroller")||{}).scrollTop || 0 : 0;
   const hu = housesInUse();
   setApp(`
     <div class="hdr">
@@ -1707,6 +1715,10 @@ function renderGame(){
       <button class="bb" id="g_menu">More</button>
     </div>
   `);
+  if (keepScroll){
+    const sc = document.querySelector(".scroller");
+    if (sc) sc.scrollTop = keepScroll;   // browsers clamp if the page got shorter
+  }
   if (canSave()) setSaveStatus(saveBusy||saveTimer? "busy":"ok", saveBusy||saveTimer? "Saving…":"Saved");
   else setSaveStatus("", "Not saving — sign in");
   $("#g_home").addEventListener("click", ()=>{
@@ -2318,7 +2330,9 @@ function renderTV(){
       </header>
 
       <section class="tvplayers">
-        ${order.map(p=>tvPlayerCard(p, pred)).join("")}
+        ${(()=>{ let r = 0;
+          return order.map(p=>tvPlayerCard(p, pred, p.bankrupt? 0 : ++r)).join("");
+        })()}
       </section>
 
       <div class="tvside">
@@ -2367,7 +2381,12 @@ function renderTV(){
   drawProbChart(pred);
 }
 
-function tvPlayerCard(p, pred){
+function plural(n, one, many){ return n + " " + (n===1 ? one : (many || one+"s")); }
+function ordinal(n){
+  const s = ["th","st","nd","rd"], v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+function tvPlayerCard(p, pred, rank){
   const owned = playerProps(p.id);
   const byGroup = {};
   owned.forEach(pr=>{ (byGroup[pr.group] = byGroup[pr.group]||[]).push(pr); });
@@ -2379,17 +2398,12 @@ function tvPlayerCard(p, pred){
     <article class="tvcard ${p.bankrupt?"out":""} ${pred.leader===p.id && !p.bankrupt?"lead":""}">
       <div class="stripe" style="background:${p.color}"></div>
       <div class="tvtop">
-        ${tokenSVG(p.token, p.color, 40)}
+        <span class="tvrank" style="color:${p.color}">${p.bankrupt? "out" : ordinal(rank)}</span>
         <div class="tvname">${esc(p.name)}</div>
-        ${pred.leader===p.id && !p.bankrupt?`<span class="crown">leading</span>`:""}
         <div class="tvcash ${p.balance<0?"neg":""}">${fmtS(p.balance)}</div>
       </div>
       <div class="tvstats">
         <span><b>${fmt(netWorth(p))}</b> net worth</span>
-        <span><b>${owned.length}</b> properties</span>
-        <span><b>${monos.length}</b> monopolies</span>
-        <span><b>${houses}</b>🏠 <b>${hotels}</b>🏨</span>
-        ${p.bankrupt?"":`<span class="odds"><b>${pct}%</b> to win</span>`}
       </div>
       <div class="tvprops">
         ${Object.keys(GROUPS).filter(g=>byGroup[g]).map(g=>`
@@ -2427,7 +2441,13 @@ function tvPredRow(p, pred){
     <div class="predrow ${pred.leader===p.id?"lead":""}">
       ${tokenSVG(p.token, p.color, 22)}
       <span class="pname">${esc(p.name)}</span>
-      <span class="why">${esc(predictWhy(p.id, f))}</span>
+      <span class="why">${esc(predictWhy(p.id, f))}<i class="counts">${
+        (()=>{ let h=0,t=0; const own = playerProps(p.id);
+          own.forEach(pr=>{ const st=S.props[pr.id]; if (st.houses===5) t++; else h += st.houses||0; });
+          return [plural(own.length,"property","properties"), plural(monopoliesOf(p.id),"monopoly","monopolies"),
+                  plural(h,"house"), plural(t,"hotel")].join(" \u00b7 ");
+        })()
+      }</i></span>
       <span class="pct">${pct<1?"<1":Math.round(pct)}%</span>
       <span class="pbar"><i style="width:${Math.max(1,pct)}%; background:${p.color}"></i></span>
       <span class="factors">
@@ -2500,8 +2520,9 @@ function drawProbChart(pred){
 
   // normalise each sample so the lines are a true share of 100%
   const val = (j,i) => {
-    const total = pts[j].p.reduce((a,b)=>a+b,0) || 1;
-    return pts[j].p[i]/total;
+    const row = pts[j].p;
+    const total = row.reduce((a,b)=>a + (Number(b)||0), 0) || 1;
+    return (Number(row[i])||0) / total;   // a player who joined later reads 0 back then
   };
 
   const grid = [0,0.25,0.5,0.75,1].map(v=>
