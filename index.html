@@ -144,6 +144,14 @@
     grid-template-columns:1.8fr 1fr;
     grid-template-rows:auto minmax(0,1fr) minmax(0,.55fr);
     grid-template-areas:"hdr hdr" "players side" "chart side";}
+  /* With the timeline hidden the players area takes both rows — the reason to
+     hide it is that seven or eight cards were being cut off. */
+  .tv.nochart{grid-template-rows:auto auto minmax(0,1fr);
+    grid-template-areas:"hdr hdr" "showchart side" "players side"}
+  .showchart{grid-area:showchart; justify-self:start; font-size:1.35vh; font-weight:700;
+    color:var(--sky-ink); background:var(--sky-tint); border:1px solid #BFE4F8;
+    border-radius:.7vh; padding:.5vh 1vw; cursor:pointer}
+  .showchart:hover{background:#D5EEFB}
   .tvhdr{grid-area:hdr; display:flex; align-items:baseline; gap:1.6vw; padding:0 .3vw .4vh}
   .tvtitle{font-size:2.5vh; font-weight:900; letter-spacing:.3px; display:flex; align-items:baseline; gap:.8vw}
   .tvtitle small{font-size:1.7vh; font-weight:700; color:var(--ink2)}
@@ -179,8 +187,9 @@
   .tvcash{flex:none; margin-left:auto; padding-left:.6vw; font-size:calc(3.4vh * var(--fs));
     font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
   .tvcash.neg{color:var(--brand-ink)}
-  .tvstats{display:flex; flex-wrap:wrap; gap:.5vh 1.1vw; margin:1vh 0 1.1vh;
+  .tvstats{display:flex; flex-wrap:wrap; gap:.5vh 1.1vw; margin:1vh 0 .5vh;
     font-size:1.8vh; color:var(--ink3)}
+  .tvread{font-size:1.6vh; font-weight:600; color:var(--ink2); margin:0 0 1vh}
   .tvstats b{color:var(--ink2); font-weight:800}
   .tvstats .odds b{color:var(--sky-ink)}
   .tvprops{display:flex; flex-wrap:wrap; gap:.6vh; flex:1; align-content:flex-start}
@@ -208,17 +217,15 @@
   .tvside .tvlog{flex:1; min-height:0}
   .predlist{display:flex; flex-direction:column; gap:0; overflow:hidden; min-height:0}
   .predrow{display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:
-    "tok name counts pct" "why why why why" "fac fac fac fac";
+    "tok name counts pct" "fac fac fac fac";
     align-items:center; gap:.15vh .6vw;
     padding:.7vh .6vw; margin:0 -.6vw; background:transparent; border:0;
     border-bottom:1px solid var(--line-soft); border-radius:0}
   .predrow:last-child{border-bottom:0}
   .predrow.lead{background:var(--sky-tint); border-radius:.8vh}
-  .predrow.out{opacity:.45; grid-template-areas:"tok name counts pct" "why why why why"}
+  .predrow.out{opacity:.45; grid-template-areas:"tok name counts pct"}
   .predrow svg.tok{grid-area:tok}
   .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
-  .predrow .why{grid-area:why; justify-self:start; font-size:1.35vh; color:var(--ink2);
-    white-space:normal; margin:0 0 .3vh}
   .predrow .pcounts{grid-area:counts; justify-self:start; align-self:center; display:flex;
     flex-wrap:wrap; gap:.3vh .35vw; min-width:0; overflow:hidden}
   .cchip{font-style:normal; font-size:1.15vh; font-weight:800; color:var(--ink2);
@@ -246,11 +253,13 @@
   .fbar{display:block; height:.6vh; border-radius:.3vh; background:var(--line); overflow:hidden}
   .fbar i{display:block; height:100%; opacity:.85}
 
-  .logscroll{overflow:hidden; display:flex; flex-direction:column; gap:.35vh; min-height:0;
-    -webkit-mask-image:linear-gradient(to bottom, #000 88%, transparent 100%);
-    mask-image:linear-gradient(to bottom, #000 88%, transparent 100%)}
+  .logscroll{overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column;
+    gap:.35vh; min-height:0; scrollbar-width:thin}
   .tvlogrow{display:flex; gap:.7vw; font-size:1.55vh; line-height:1.35;
-    padding:.35vh 0; border-bottom:1px solid var(--line-soft)}
+    padding:.35vh 0; border-bottom:1px solid var(--line-soft); flex:none}
+  /* Newest first, so the top row is the thing that just happened. */
+  .tvlogrow:first-child{font-weight:800; color:var(--ink)}
+  .tvlogrow:first-child .lt{color:var(--ink2); font-weight:800}
   .tvlogrow .lt{color:var(--ink3); font-size:1.25vh; flex:none; width:4.6vw;
     font-variant-numeric:tabular-nums; padding-top:.2vh}
   .tvlogrow .lx{flex:1}
@@ -2267,7 +2276,7 @@ function openAddPlayer(){
 /* ================= GAME NIGHT (TV dashboard) =================
    Read-only. Opened as ?tv=<gameId>, polls the saved game every few
    seconds so it follows whatever the banker does on their phone. */
-let tvHowOpen = false;
+let tvHowOpen = false, tvChartHidden = false;
 let tvFocus = null, tvFocusLocked = false;   // legend focus: hover previews, click sticks
 let tvGameId = null, tvTimer = null, tvLastUpdated = null, tvHover = null;
 
@@ -2329,7 +2338,7 @@ function renderTV(){
   });
 
   setApp(`
-    <div class="tv">
+    <div class="tv${tvChartHidden? " nochart":""}">
       <header class="tvhdr">
         <div class="tvtitle">Game View<small>${esc(S.name)}</small></div>
         <div class="tvmeta">
@@ -2342,6 +2351,7 @@ function renderTV(){
         <button class="tvexit" id="tv_exit">Exit Game View</button>
       </header>
 
+      ${tvChartHidden? `<button class="showchart" id="tv_showchart">Show win probability over time</button>` : ""}
       <section class="tvplayers">
         ${(()=>{ let r = 0;
           return order.map(p=>tvPlayerCard(p, pred, p.bankrupt? 0 : ++r)).join("");
@@ -2383,8 +2393,9 @@ function renderTV(){
       </section>
       </div>
 
-      <section class="tvpanel tvchart">
-        <h3>Win probability over time<small>each player's chance of winning after every move</small></h3>
+      <section class="tvpanel tvchart"${tvChartHidden? ' hidden':''}>
+        <h3>Win probability over time<small>each player's chance of winning after every move</small>
+          <button class="howbtn" id="tv_hidechart">Hide</button></h3>
         <div class="chartlegend">${S.players.map(p=>`
           <button class="lgd" data-pl="${p.id}" aria-pressed="false"
             title="Show only ${esc(p.name)}"><i style="background:${p.color}"></i>${esc(p.name)}</button>`).join("")}</div>
@@ -2393,6 +2404,7 @@ function renderTV(){
     </div>
   `);
   fitTVHeaders();
+  wireChartToggle();
   wireHowPopover();
   wireChartLegend();
   const ex = document.getElementById("tv_exit");
@@ -2407,6 +2419,14 @@ function plural(n, one, many){ return n + " " + (n===1 ? one : (many || one+"s")
    floor — past that the ellipsis takes over. */
 /* The dashboard redraws on a timer, so whether the explainer is open has to
    live outside the markup or it would snap shut every few seconds. */
+/* Hiding the timeline hands its row to the player cards. Kept in a module flag
+   so the dashboard's periodic redraw doesn't bring it back. */
+function wireChartToggle(){
+  const hide = document.getElementById("tv_hidechart");
+  if (hide) hide.addEventListener("click", ()=>{ tvChartHidden = true; renderTV(); });
+  const show = document.getElementById("tv_showchart");
+  if (show) show.addEventListener("click", ()=>{ tvChartHidden = false; renderTV(); });
+}
 function wireHowPopover(){
   const btn = document.getElementById("tv_how"), pop = document.getElementById("tv_howpop");
   if (!btn || !pop) return;
@@ -2459,6 +2479,7 @@ function tvPlayerCard(p, pred, rank){
       <div class="tvstats">
         <span><b>${fmt(netWorth(p))}</b> net worth</span>
       </div>
+      ${p.bankrupt? "" : `<div class="tvread">${esc(predictWhy(p.id, pred.factors[p.id]))}</div>`}
       <div class="tvprops">
         ${Object.keys(GROUPS).filter(g=>byGroup[g]).map(g=>`
           <span class="grp ${monos.includes(g)?"full":""}" style="--gc:${GROUPS[g].color}">
@@ -2503,7 +2524,6 @@ function tvPredRow(p, pred){
         return chips.map(([n,one,many])=>
           `<i class="cchip${n?"":" zero"}">${n} ${n===1?one:many}</i>`).join("");
       })()}</span>
-      <span class="why">${esc(predictWhy(p.id, f))}</span>
       <span class="pct">${pct<1?"<1":Math.round(pct)}%</span>
       <span class="factors">
         ${bar("netWorth","Net worth")}${bar("monopolies","Monopolies")}
@@ -2555,7 +2575,7 @@ function wireChartLegend(){
 }
 function drawProbChart(pred){
   const box = document.querySelector("#tv_chart");
-  if (!box) return;
+  if (!box || tvChartHidden) return;   // no point measuring a panel with no size
   const series = S.players;
   let pts = (S.probTimeline||[]).slice().sort((a,b)=>a.t-b.t);
   const now = series.map(p=>pred.probs[p.id]||0);
