@@ -176,25 +176,32 @@
   .tvcard .stripe{position:absolute; top:0; left:0; right:0; height:.7vh}
   .tvcard.lead{border-color:var(--sky); background:var(--sky-tint)}
   .tvcard.out{opacity:.42}
-  .tvtop{--fs:1; display:flex; flex-wrap:nowrap; align-items:baseline; gap:.45vw;
+  /* Centre, not baseline: the badge is a filled box and the balance is a size
+     larger than the name, so a shared baseline left all three sitting on
+     slightly different lines. Centres line up regardless of size. */
+  .tvtop{--fs:1; display:flex; flex-wrap:nowrap; align-items:center; gap:.45vw;
     margin-top:.5vh; min-width:0}
   .tvname{font-size:calc(2.9vh * var(--fs)); font-weight:900; flex:0 1 auto; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   /* Standing replaces the token here: the position is what you read across the
      table at a glance, and the player's colour still says who it is. Sized in em
      off the row's own scale so it shrinks with the name and balance. */
-  .tvrank{flex:none; display:inline-flex; align-items:center; justify-content:center;
-    font-size:calc(2.1vh * var(--fs)); font-weight:900; font-variant-numeric:tabular-nums;
-    min-width:1.9em; height:1.9em; padding:0 .35em; border-radius:.5em; line-height:1}
-  .tvrank.out{background:var(--line); color:var(--ink3)}
+  .tvrank{flex:none; display:inline-flex; font-size:calc(2.1vh * var(--fs)); line-height:0}
+  .tvrank svg{height:2.5em; width:auto; display:block; overflow:visible}
+  .tvrank.out{opacity:.6}
   .tvcash{flex:none; margin-left:auto; padding-left:.6vw; font-size:calc(3.4vh * var(--fs));
     font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
   .tvcash.neg{color:var(--brand-ink)}
-  .tvstats{display:flex; flex-wrap:wrap; gap:.5vh 1.1vw; margin:1vh 0 .5vh;
-    font-size:1.8vh; color:var(--ink3)}
+  /* Mirrors .tvtop: the piece sits under the badge and name, net worth under
+     the balance it qualifies. */
+  .tvsub{display:flex; align-items:baseline; gap:.6vw; margin:.4vh 0 .6vh;
+    font-size:1.8vh; color:var(--ink3); min-width:0}
+  .tvpiece{flex:0 1 auto; min-width:0; font-size:1.45vh; font-weight:700; letter-spacing:.5px;
+    text-transform:uppercase; color:var(--ink3); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis}
+  .tvnw{flex:none; margin-left:auto; padding-left:.6vw; white-space:nowrap}
+  .tvnw b{color:var(--ink2); font-weight:800}
   .tvread{font-size:1.6vh; font-weight:600; color:var(--ink2); margin:0 0 1vh}
-  .tvstats b{color:var(--ink2); font-weight:800}
-  .tvstats .odds b{color:var(--sky-ink)}
   .tvprops{display:flex; flex-wrap:wrap; gap:.6vh; flex:1; align-content:flex-start}
   /* max-width + wrap: a three-deed set is wider than the card, and a row that
      cannot wrap just runs off the edge under overflow:hidden. */
@@ -2467,6 +2474,22 @@ function fitTVHeaders(){
     }
   });
 }
+/* An outlined pennant rather than a filled chip: drawn as SVG because a CSS
+   clip-path cuts its own border off, so a stroked shape is the only way to get
+   the outline and the point at once. Sized in em, so it rides the header's
+   --fs scale along with the name and balance. */
+function rankShield(n, color){
+  const c = n ? color : "var(--ink3)";
+  const label = n ? ordinal(n)+" by win probability" : "Out of the game";
+  return `<span class="tvrank${n?"":" out"}" title="${label}" aria-label="${label}">
+    <svg viewBox="0 0 40 48" aria-hidden="true">
+      <path d="M3.5 3.5 H36.5 V30 L20 44.5 L3.5 30 Z"
+        fill="none" stroke="${c}" stroke-width="3.6" stroke-linejoin="round"/>
+      <text x="20" y="21.5" text-anchor="middle" dominant-baseline="central"
+        fill="${c}" font-size="21" font-weight="900"
+        font-family="inherit">${n || "\u2013"}</text>
+    </svg></span>`;
+}
 function ordinal(n){
   const s = ["th","st","nd","rd"], v = n % 100;
   return n + (s[(v-20)%10] || s[v] || s[0]);
@@ -2483,15 +2506,13 @@ function tvPlayerCard(p, pred, rank){
     <article class="tvcard ${p.bankrupt?"out":""} ${pred.leader===p.id && !p.bankrupt?"lead":""}">
       <div class="stripe" style="background:${p.color}"></div>
       <div class="tvtop">
-        <span class="tvrank${p.bankrupt?" out":""}" ${p.bankrupt? ""
-          : `style="background:${p.color}; color:${inkOn(p.color)}"`}
-          title="${p.bankrupt? "Out of the game" : ordinal(rank)+" by win probability"}"
-          >${p.bankrupt? "\u2014" : rank}</span>
+        ${rankShield(p.bankrupt? null : rank, p.color)}
         <div class="tvname">${esc(p.name)}</div>
         <div class="tvcash ${p.balance<0?"neg":""}">${fmtS(p.balance)}</div>
       </div>
-      <div class="tvstats">
-        <span><b>${fmt(netWorth(p))}</b> net worth</span>
+      <div class="tvsub">
+        <span class="tvpiece">${esc(TOKEN(p.token).name)}</span>
+        <span class="tvnw"><b>${fmt(netWorth(p))}</b> net worth</span>
       </div>
       ${p.bankrupt? "" : `<div class="tvread">${esc(predictWhy(p.id, pred.factors[p.id]))}</div>`}
       <div class="tvprops">
