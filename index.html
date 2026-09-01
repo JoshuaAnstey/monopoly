@@ -202,15 +202,17 @@
   .tvnw{flex:none; margin-left:auto; padding-left:.6vw; white-space:nowrap}
   .tvnw b{color:var(--ink2); font-weight:800}
   .tvread{font-size:1.6vh; font-weight:600; color:var(--ink2); margin:0 0 1vh}
-  .tvprops{display:flex; flex-wrap:wrap; gap:.6vh; flex:1; align-content:flex-start}
+  /* The tighter metrics below buy back the row that spelling the railroads out
+     costs, so the deeds still fit without dropping the type size. */
+  .tvprops{display:flex; flex-wrap:wrap; gap:.45vh; flex:1; align-content:flex-start}
   /* max-width + wrap: a three-deed set is wider than the card, and a row that
      cannot wrap just runs off the edge under overflow:hidden. */
-  .tvprops .grp{display:inline-flex; flex-wrap:wrap; max-width:100%; gap:3px; padding:3px;
+  .tvprops .grp{display:inline-flex; flex-wrap:wrap; max-width:100%; gap:2px; padding:2px;
     border-radius:.9vh; align-self:flex-start;
     background:color-mix(in srgb, var(--gc) 18%, #fff); border:1px solid var(--line-soft)}
   .tvprops .grp.full{border-color:var(--gc)}
   .tvprops .pc{font-size:1.55vh; font-weight:700; background:var(--gc);
-    padding:.4vh .7vh; border-radius:.6vh; max-width:100%; min-width:0;
+    padding:.25vh .6vh; border-radius:.6vh; max-width:100%; min-width:0;
     display:inline-flex; align-items:center; gap:.4vh; white-space:nowrap; overflow:hidden}
   .tvprops .pc.mort{opacity:.35; text-decoration:line-through}
   .tvprops .pc i{font-style:normal; font-weight:900; background:rgba(31,35,56,.5); color:#fff;
@@ -2530,12 +2532,15 @@ function tvPlayerCard(p, pred, rank){
     </article>`;
 }
 
+/* Nothing here is mangled any more. The only thing dropped is a redundant
+   "Ave"/"Place" suffix on the streets, which carries no information: the deed
+   is "Tennessee" whether or not you say "Avenue". Everything else prints as
+   written, because the abbreviations were losing real information — "Penn."
+   was both Pennsylvania Avenue and Pennsylvania Railroad, and this list is
+   read as a checklist when resetting the board. */
 function shortName(pr){
-  if (pr.group==="rail") return pr.name.replace(" Railroad","").replace("Reading","Read.").replace("Pennsylvania","Penn.").replace("B. & O.","B&O").replace("Short Line","Short L.");
-  if (pr.group==="util") return pr.name.replace("Electric Company","Electric").replace("Water Works","Water");
-  return pr.name.replace(" Avenue","").replace(" Ave","").replace(" Place","").replace(" Gardens","Gdns")
-    .replace("North Carolina","N. Carolina").replace("Mediterranean","Medit.").replace("Connecticut","Connect.")
-    .replace("Pennsylvania","Penn.").replace("St. Charles","St. Charles");
+  if (pr.group==="rail" || pr.group==="util") return pr.name;
+  return pr.name.replace(" Avenue","").replace(" Ave","").replace(" Place","");
 }
 
 function tvPredRow(p, pred){
