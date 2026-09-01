@@ -168,14 +168,16 @@
   .tvcard .stripe{position:absolute; top:0; left:0; right:0; height:.7vh}
   .tvcard.lead{border-color:var(--sky); background:var(--sky-tint)}
   .tvcard.out{opacity:.42}
-  .tvtop{display:flex; flex-wrap:wrap; align-items:center; gap:.3vh .7vw; margin-top:.5vh}
-  .tvname{font-size:2.9vh; font-weight:900; flex:1 1 6ch; min-width:6ch; white-space:nowrap;
-    overflow:hidden; text-overflow:ellipsis}
+  .tvtop{--fs:1; display:flex; flex-wrap:nowrap; align-items:baseline; gap:.45vw;
+    margin-top:.5vh; min-width:0}
+  .tvname{font-size:calc(2.9vh * var(--fs)); font-weight:900; flex:0 1 auto; min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   /* Standing replaces the token here: the position is what you read across the
      table at a glance, and the player's colour still says who it is. */
-  .tvrank{flex:none; font-size:2.4vh; font-weight:900; letter-spacing:-.02em;
-    font-variant-numeric:tabular-nums; min-width:3.6ch}
-  .tvcash{flex:none; font-size:3.4vh; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+  .tvrank{flex:none; font-size:calc(2.4vh * var(--fs)); font-weight:900; letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums}
+  .tvcash{flex:none; margin-left:auto; padding-left:.6vw; font-size:calc(3.4vh * var(--fs));
+    font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
   .tvcash.neg{color:var(--brand-ink)}
   .tvstats{display:flex; flex-wrap:wrap; gap:.5vh 1.1vw; margin:1vh 0 1.1vh;
     font-size:1.8vh; color:var(--ink3)}
@@ -205,19 +207,21 @@
   .tvside .tvpred{flex:none; min-height:0}
   .tvside .tvlog{flex:1; min-height:0}
   .predlist{display:flex; flex-direction:column; gap:0; overflow:hidden; min-height:0}
-  .predrow{display:grid; grid-template-columns:auto 1fr auto; grid-template-areas:
-    "tok name pct" "why why why" "bar bar bar" "fac fac fac"; align-items:center; gap:.15vh .6vw;
+  .predrow{display:grid; grid-template-columns:auto auto 1fr auto; grid-template-areas:
+    "tok name counts pct" "why why why why" "bar bar bar bar" "fac fac fac fac";
+    align-items:center; gap:.15vh .6vw;
     padding:.7vh .6vw; margin:0 -.6vw; background:transparent; border:0;
     border-bottom:1px solid var(--line-soft); border-radius:0}
   .predrow:last-child{border-bottom:0}
   .predrow.lead{background:var(--sky-tint); border-radius:.8vh}
-  .predrow.out{opacity:.45; grid-template-areas:"tok name pct" "why why why"}
+  .predrow.out{opacity:.45; grid-template-areas:"tok name counts pct" "why why why why"}
   .predrow svg.tok{grid-area:tok}
   .predrow .pname{grid-area:name; font-size:1.8vh; font-weight:800}
   .predrow .why{grid-area:why; justify-self:start; font-size:1.35vh; color:var(--ink2);
     white-space:normal; margin:0 0 .3vh}
-  .predrow .counts{display:block; font-style:normal; font-size:1.2vh; color:var(--ink3);
-    font-weight:600; margin-top:.15vh}
+  .predrow .pcounts{grid-area:counts; justify-self:start; align-self:end; font-size:1.25vh;
+    font-weight:700; color:var(--ink3); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; min-width:0; padding-bottom:.25vh}
   .predrow .pct{grid-area:pct; font-size:2.2vh; font-weight:900; font-variant-numeric:tabular-nums}
   .predrow .pbar{grid-area:bar; height:.8vh; border-radius:.4vh; background:var(--line); overflow:hidden}
   .predrow .pbar i{display:block; height:100%; border-radius:.4vh}
@@ -2375,6 +2379,7 @@ function renderTV(){
       </section>
     </div>
   `);
+  fitTVHeaders();
   wireChartLegend();
   const ex = document.getElementById("tv_exit");
   if (ex) ex.addEventListener("click", ()=>{ location.href = location.pathname; });
@@ -2382,6 +2387,22 @@ function renderTV(){
 }
 
 function plural(n, one, many){ return n + " " + (n===1 ? one : (many || one+"s")); }
+/* The header must stay on one line, so when place + name + balance are too wide
+   for the card we scale the whole row down rather than wrapping or truncating.
+   Shrinking stops as soon as the name fits, and never goes below a readable
+   floor — past that the ellipsis takes over. */
+function fitTVHeaders(){
+  document.querySelectorAll(".tvcard .tvtop").forEach(top=>{
+    const name = top.querySelector(".tvname");
+    if (!name) return;
+    let scale = 1, guard = 0;
+    top.style.setProperty("--fs", scale);
+    while (name.scrollWidth > name.clientWidth + 1 && scale > 0.62 && guard++ < 24){
+      scale = Math.max(0.62, Math.round((scale - 0.04) * 100) / 100);
+      top.style.setProperty("--fs", scale);
+    }
+  });
+}
 function ordinal(n){
   const s = ["th","st","nd","rd"], v = n % 100;
   return n + (s[(v-20)%10] || s[v] || s[0]);
@@ -2441,13 +2462,15 @@ function tvPredRow(p, pred){
     <div class="predrow ${pred.leader===p.id?"lead":""}">
       ${tokenSVG(p.token, p.color, 22)}
       <span class="pname">${esc(p.name)}</span>
-      <span class="why">${esc(predictWhy(p.id, f))}<i class="counts">${
-        (()=>{ let h=0,t=0; const own = playerProps(p.id);
-          own.forEach(pr=>{ const st=S.props[pr.id]; if (st.houses===5) t++; else h += st.houses||0; });
-          return [plural(own.length,"property","properties"), plural(monopoliesOf(p.id),"monopoly","monopolies"),
-                  plural(h,"house"), plural(t,"hotel")].join(" \u00b7 ");
-        })()
-      }</i></span>
+      <span class="pcounts">${(()=>{
+        let h=0,t=0; const own = playerProps(p.id);
+        own.forEach(pr=>{ const st=S.props[pr.id]; if (st.houses===5) t++; else h += st.houses||0; });
+        const bits = [own.length+" props", monopoliesOf(p.id)+" mono"];
+        if (h) bits.push(h+"\u{1f3e0}");
+        if (t) bits.push(t+"\u{1f3e8}");
+        return bits.join(" \u00b7 ");
+      })()}</span>
+      <span class="why">${esc(predictWhy(p.id, f))}</span>
       <span class="pct">${pct<1?"<1":Math.round(pct)}%</span>
       <span class="pbar"><i style="width:${Math.max(1,pct)}%; background:${p.color}"></i></span>
       <span class="factors">
