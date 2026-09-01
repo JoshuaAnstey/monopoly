@@ -146,9 +146,9 @@
     grid-template-areas:"hdr hdr" "players side" "chart side";}
   /* With the timeline hidden the players area takes both rows — the reason to
      hide it is that seven or eight cards were being cut off. */
-  .tv.nochart{grid-template-rows:auto auto minmax(0,1fr);
-    grid-template-areas:"hdr hdr" "showchart side" "players side"}
-  .showchart{grid-area:showchart; justify-self:start; font-size:1.35vh; font-weight:700;
+  .tv.nochart{grid-template-rows:auto minmax(0,1fr) auto;
+    grid-template-areas:"hdr hdr" "players side" "showchart side"}
+  .showchart{grid-area:showchart; justify-self:end; font-size:1.35vh; font-weight:700;
     color:var(--sky-ink); background:var(--sky-tint); border:1px solid #BFE4F8;
     border-radius:.7vh; padding:.5vh 1vw; cursor:pointer}
   .showchart:hover{background:#D5EEFB}
@@ -181,9 +181,12 @@
   .tvname{font-size:calc(2.9vh * var(--fs)); font-weight:900; flex:0 1 auto; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   /* Standing replaces the token here: the position is what you read across the
-     table at a glance, and the player's colour still says who it is. */
-  .tvrank{flex:none; font-size:calc(2.4vh * var(--fs)); font-weight:900; letter-spacing:-.02em;
-    font-variant-numeric:tabular-nums}
+     table at a glance, and the player's colour still says who it is. Sized in em
+     off the row's own scale so it shrinks with the name and balance. */
+  .tvrank{flex:none; display:inline-flex; align-items:center; justify-content:center;
+    font-size:calc(2.1vh * var(--fs)); font-weight:900; font-variant-numeric:tabular-nums;
+    min-width:1.9em; height:1.9em; padding:0 .35em; border-radius:.5em; line-height:1}
+  .tvrank.out{background:var(--line); color:var(--ink3)}
   .tvcash{flex:none; margin-left:auto; padding-left:.6vw; font-size:calc(3.4vh * var(--fs));
     font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
   .tvcash.neg{color:var(--brand-ink)}
@@ -628,12 +631,20 @@ const TOKENS = [
 const TOKEN = id => TOKENS.find(t=>t.id===id) || TOKENS[0];
 /* Board colours run from #fef200 to #0072bb — pick ink or white per swatch
    so a chip is always readable, whatever set it belongs to. */
-function inkOn(hex){
+/* Pick whichever ink actually reads better ON this colour. The old version
+   compared the background against black, which is not the question being
+   asked — on a mid blue it chose dark ink at 3.5:1 over white at 4.4:1. */
+const LUM = hex => {
   const c = hex.replace("#","");
   const [r,g,b] = [0,2,4].map(i=>parseInt(c.slice(i,i+2),16)/255)
     .map(v=>v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
-  const L = 0.2126*r + 0.7152*g + 0.0722*b;
-  return (L + 0.05) / 0.05 >= 4.5 ? "#1F2338" : "#FFFFFF";   // vs white text
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+};
+const CONTRAST = (a,b) => { const x=LUM(a), y=LUM(b);
+  return (Math.max(x,y) + 0.05) / (Math.min(x,y) + 0.05); };
+function inkOn(hex){
+  const DARK = "#1F2338", LIGHT = "#FFFFFF";
+  return CONTRAST(hex, DARK) >= CONTRAST(hex, LIGHT) ? DARK : LIGHT;
 }
 function tokenSVG(id, color, size){
   return `<svg class="tok" width="${size}" height="${size}" viewBox="0 0 24 24" `
@@ -2472,7 +2483,10 @@ function tvPlayerCard(p, pred, rank){
     <article class="tvcard ${p.bankrupt?"out":""} ${pred.leader===p.id && !p.bankrupt?"lead":""}">
       <div class="stripe" style="background:${p.color}"></div>
       <div class="tvtop">
-        <span class="tvrank" style="color:${p.color}">${p.bankrupt? "out" : ordinal(rank)}</span>
+        <span class="tvrank${p.bankrupt?" out":""}" ${p.bankrupt? ""
+          : `style="background:${p.color}; color:${inkOn(p.color)}"`}
+          title="${p.bankrupt? "Out of the game" : ordinal(rank)+" by win probability"}"
+          >${p.bankrupt? "\u2014" : rank}</span>
         <div class="tvname">${esc(p.name)}</div>
         <div class="tvcash ${p.balance<0?"neg":""}">${fmtS(p.balance)}</div>
       </div>
@@ -2490,7 +2504,7 @@ function tvPlayerCard(p, pred, rank){
                 style="color:${inkOn(GROUPS[g].color)}">
                 ${esc(shortName(pr))}${badge?`<i>${badge}</i>`:""}</span>`;
             }).join("")}
-          </span>`).join("") || `<span class="tvempty">no property yet</span>`}
+          </span>`).join("")}
       </div>
     </article>`;
 }
