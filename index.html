@@ -18,6 +18,9 @@
     --sky:#66C7F4; --sky-btn:#2AA3DE; --sky-ink:#0E6F97; --sky-tint:#E8F6FE;
     /* Secondary (Rhythm) — quiet accents, caution */
     --indigo:#6C6EA0; --indigo-ink:#4A4C77; --indigo-tint:#EFEFF7;
+    /* Rubber-stamp red. Not the brand red, which is a pink; a stamp pad is
+       oranger and reads as ink rather than as a button. */
+    --stamp:#D0111F;
     --shadow:0 1px 2px rgba(31,35,56,.06), 0 4px 14px rgba(31,35,56,.06);
     --shadow-lg:0 10px 40px rgba(31,35,56,.16);
     --radius:14px;
@@ -108,6 +111,9 @@
   .tokopt:active:not(:disabled){background:var(--card2)}
   .colopt{width:34px; height:34px; border-radius:50%; border:3px solid transparent}
   .colopt.sel{border-color:var(--ink)}
+  /* Same treatment as a taken piece, so "already someone else's" reads the same
+     way in both rows. */
+  .colopt:disabled{opacity:.28}
   .phead svg.tok{margin-right:-2px}
   .lbdot{display:flex; align-items:center; justify-content:center; flex:none; width:24px; height:24px}
   .act .ic svg.tok{vertical-align:middle}
@@ -175,7 +181,19 @@
     box-shadow:var(--shadow); display:flex; flex-direction:column}
   .tvcard .stripe{position:absolute; top:0; left:0; right:0; height:.7vh}
   .tvcard.lead{border-color:var(--sky); background:var(--sky-tint)}
-  .tvcard.out{opacity:.42}
+  /* The fade goes on the card's contents, not the card: an opacity on the card
+     itself would take the stamp down with everything else, and the point of a
+     stamp is that it is the one thing still at full strength. */
+  .tvcard.out > :not(.tvstamp){opacity:.42}
+  .tvstamp{position:absolute; inset:0; display:grid; place-items:center; z-index:2;
+    pointer-events:none}
+  /* The inset white ring splits the frame the way a real stamp's does: a thick
+     band of ink with a hairline of paper showing through just inside it. */
+  .tvstamp b{transform:rotate(-11deg); color:var(--stamp); opacity:.82;
+    border:.6vh solid currentColor; border-radius:.3vh; padding:.45vh 1.5vh .6vh;
+    box-shadow:inset 0 0 0 .18vh #fff;
+    font-size:4vh; font-weight:900; letter-spacing:.05em; text-transform:uppercase;
+    line-height:1.02; white-space:nowrap; max-width:94%}
   /* Centre, not baseline: the badge is a filled box and the balance is a size
      larger than the name, so a shared baseline left all three sitting on
      slightly different lines. Centres line up regardless of size. */
@@ -909,7 +927,13 @@ function undo(){
   if (S && S.paused){ toast("Game is paused — hit Resume"); return; }
   if (!snapshots.length){ toast("Nothing to undo"); return; }
   const last = S.log[0];
+  /* Name, colour and piece never entered the undo stack, so every snapshot
+     predates the current ones. Carry them across rather than silently undoing
+     a rename or a piece swap that the player never asked to take back. */
+  const look = S.players.map(p=>({ id:p.id, name:p.name, color:p.color, token:p.token }));
   S = JSON.parse(snapshots.pop());
+  look.forEach(it=>{ const p = S.players.find(x=>x.id===it.id);
+    if (p){ p.name = it.name; p.color = it.color; p.token = it.token; } });
   renderGame();
   scheduleSave();
   toast("Undone" + (last? ": " + last.x.slice(0,40) : ""));
@@ -1797,6 +1821,7 @@ function quickAction(plId, a){
   if (a==="go"){ transfer("BANK", plId, S.settings.goAmount, "passed GO", "go"); toast(pl.name+" +"+fmt(S.settings.goAmount)); }
   else if (a==="collect"){ askAmount({title:"Collect from Bank", sub:pl.name+" receives"}, v=>transfer("BANK", plId, v, "", "bankIn")); }
   else if (a==="rename"){ openRenamePlayer(plId); }
+  else if (a==="piece"){ openChangePiece(plId); }
   else if (a==="paybank"){ openPayBank(plId); }
   else if (a==="payplayer"){ pickPlayer("Who does "+pl.name+" pay?", plId, toId=>{
     askAmount({title:pl.name+" pays "+player(toId).name}, v=>transfer(plId, toId, v, "", "player"));
@@ -1823,6 +1848,7 @@ function openPlayerSheet(plId){
       <button class="act" data-a="paybank"><span class="ic">🏦</span>Pay ${S.settings.freeParking? "Bank / Pot":"Bank"}…<span class="sub2">taxes, fees, cards</span></button>
       <button class="act" data-a="collect"><span class="ic">💰</span>Collect from Bank…<span class="sub2">cards, refunds, rewards</span></button>
       <button class="act" data-a="manage"><span class="ic">🏗</span>Manage Properties<span class="meta">${props.length}</span></button>
+      <button class="act" data-a="piece"><span class="ic">${tokenSVG(pl.token, pl.color, 21)}</span>Change Piece…<span class="meta">${esc(TOKEN(pl.token).name)}</span></button>
       <button class="act" data-a="rename"><span class="ic">✏️</span>Rename Player…</button>
       <button class="act red" data-a="bankrupt"><span class="ic">💀</span>Declare Bankruptcy</button>
     </div>
@@ -1886,6 +1912,59 @@ async function renamePlayer(plId, oldName, newName){
     toast("Renamed here — stats may still show " + oldName);
   }
 }
+/* Piece and colour are identity, not a move: like a rename they stay out of
+   mutate() and the undo stack, and they work while the game is paused — sorting
+   out who is which piece is exactly the kind of thing a pause is for. Pieces and
+   colours already in use are disabled, colours more strictly than at setup:
+   two players sharing a colour mid-game makes the timeline unreadable. */
+function openChangePiece(plId){
+  const pl = player(plId);
+  const others = S.players.filter(p=>p.id!==plId);
+  const takenTok = others.map(p=>p.token);
+  const takenCol = others.map(p=>p.color);
+  openPanel(`
+    <h2 class="withtok">${tokenSVG(pl.token, pl.color, 22)} ${esc(pl.name)}</h2>
+    <div class="sub">Their money, properties and history stay exactly where they are.</div>
+    <div class="pscroll">
+      <div class="tokgrid">
+        ${TOKENS.map(t=>`
+          <button class="tokopt ${t.id===pl.token?"sel":""}" data-tok="${t.id}"
+            ${takenTok.includes(t.id)?"disabled":""}
+            title="${takenTok.includes(t.id)? esc(t.name)+" \u2014 taken" : esc(t.name)}">
+            ${tokenSVG(t.id, t.id===pl.token? pl.color : "var(--ink2)", 34)}
+            <span>${esc(t.name)}</span>
+          </button>`).join("")}
+      </div>
+      <div class="grouphdr">Colour</div>
+      <div class="chips">
+        ${PLAYER_COLORS.map(c=>`<button class="colopt ${c===pl.color?"sel":""}"
+          data-col="${c}" ${takenCol.includes(c)?"disabled":""} style="background:${c}"
+          aria-label="${takenCol.includes(c)? "colour taken" : "colour"}"></button>`).join("")}
+      </div>
+    </div>
+  `, w=>{
+    w.querySelector(".pscroll").addEventListener("click", e=>{
+      const t = e.target.closest("[data-tok]");
+      if (t && !t.disabled){ closePanel(w); setPlayerLook(plId, t.dataset.tok, null); return; }
+      const c = e.target.closest("[data-col]");
+      if (c && !c.disabled){ closePanel(w); setPlayerLook(plId, null, c.dataset.col); }
+    });
+  });
+}
+function setPlayerLook(plId, tok, col){
+  const pl = player(plId);
+  if (tok && tok !== pl.token){
+    pl.token = tok;
+    logLine(pl.name + " swapped to the " + TOKEN(tok).name);
+  }
+  if (col && col !== pl.color){
+    pl.color = col;
+    logLine(pl.name + " changed colour");
+  }
+  renderGame();
+  scheduleSave();
+}
+
 function pickPlayer(title, exceptId, cb, opts={}){
   const list = S.players.filter(p=>!p.bankrupt && p.id!==exceptId);
   openPanel(`
@@ -2507,6 +2586,7 @@ function tvPlayerCard(p, pred, rank){
   return `
     <article class="tvcard ${p.bankrupt?"out":""} ${pred.leader===p.id && !p.bankrupt?"lead":""}">
       <div class="stripe" style="background:${p.color}"></div>
+      ${p.bankrupt? `<div class="tvstamp" aria-hidden="true"><b>Bankrupt</b></div>` : ""}
       <div class="tvtop">
         ${rankShield(p.bankrupt? null : rank, p.color)}
         <div class="tvname">${esc(p.name)}</div>
